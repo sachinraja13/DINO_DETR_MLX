@@ -126,7 +126,6 @@ def main(args):
     logger.info("params:\n"+json.dumps({n: p.size for n, p in tree_flatten(trainable_params)}, indent=2))
     
     lr_schedule = optim.step_decay(args.lr, args.lr_drop_factor, args.lr_drop_steps)
-    optimizer = Adam(learning_rate=lr_schedule)
     optimizer = optim.AdamW(learning_rate=lr_schedule, weight_decay=args.weight_decay)
 
 
