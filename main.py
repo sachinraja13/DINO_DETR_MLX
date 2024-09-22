@@ -23,7 +23,6 @@ import util.misc as utils
 import datasets
 from datasets import build_dataset, get_coco_api_from_dataset
 from engine import evaluate, train_one_epoch, test
-from adam_optimizer import Adam
 
 
 def get_args_parser():
