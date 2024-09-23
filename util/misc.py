@@ -156,13 +156,18 @@ def collate_fn(batch):
     return tuple(batch)
 
 
+def find_smallest_i_divisible_by_n(nums, n=32):
+    return [((k + n - 1) // n) * n for k in nums[:-1]]
+
 def _max_by_axis(the_list):
     # type: (List[List[int]]) -> List[int]
     maxes = the_list[0]
     for sublist in the_list[1:]:
         for index, item in enumerate(sublist):
             maxes[index] = max(maxes[index], item)
-    return maxes
+    maxes_div_n = find_smallest_i_divisible_by_n(maxes, n=64)
+    maxes_div_n.append(maxes[-1])
+    return maxes_div_n
 
 
 class NestedTensor(object):

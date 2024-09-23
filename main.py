@@ -108,7 +108,7 @@ def main(args):
     logger.info("args: " + str(args) + '\n')
     print(args)
                 
-
+    mx.set_default_device(mx.gpu)
     # fix the seed for reproducibility
     seed = args.seed 
     np.random.seed(seed)
@@ -117,8 +117,7 @@ def main(args):
     # build model
     model, criterion, postprocessors = build_model_main(args)
     wo_class_error = False
-
-    model_without_ddp = model
+    
     trainable_params = model.trainable_parameters()
     # Count the total number of trainable parameters
     n_parameters = sum(p.size for _, p in tree_flatten(trainable_params))
