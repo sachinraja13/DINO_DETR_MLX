@@ -73,7 +73,7 @@ def gen_encoder_output_proposals(memory, memory_padding_mask, spatial_shapes, le
         scale = mx.reshape(mx.concatenate([mx.expand_dims(valid_W, axis=-1), mx.expand_dims(valid_H, axis=-1)], axis=1), (N_, 1, 1, 2))
         grid = (mx.expand_dims(grid, axis=0) + 0.5) / scale
         if learnedwh is not None:
-            wh = mx.ones_like(grid) * nn.sigmoid(learnedwh) * (2.0 ** lvl)
+            wh = mx.ones_like(grid) * mx.sigmoid(learnedwh) * (2.0 ** lvl)
         else:
             wh = mx.ones_like(grid) * 0.05 * (2.0 ** lvl)
 

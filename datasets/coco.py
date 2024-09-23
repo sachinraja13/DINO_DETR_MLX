@@ -395,13 +395,13 @@ class CocoDetection(torchvision.datasets.CocoDetection):
         if self.aux_target_hacks is not None:
             for hack_runner in self.aux_target_hacks:
                 target, img = hack_runner(target, img=img)
-        img = mx.array(img).transpose(1, 2, 0)
+        img = mx.array(img.numpy()).transpose(1, 2, 0)
         for k,v in target.items():
             if isinstance(v, torch.Tensor):
                 if v.dtype == torch.int64:
-                    target[k] = mx.array(v, mx.int32)
+                    target[k] = mx.array(v.numpy(), mx.int32)
                 else:
-                    target[k] = mx.array(v)
+                    target[k] = mx.array(v.numpy())
 
         return img, target
 
