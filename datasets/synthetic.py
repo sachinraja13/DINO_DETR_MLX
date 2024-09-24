@@ -6,11 +6,13 @@ import random
 
 
 class SyntheticDataset:
-    def __init__(self, num_samples=100, num_classes=91, precision='full'):
+    def __init__(self, num_samples=100, num_classes=91, precision='full', min_targets_per_image=10, max_targets_per_image=100):
         self.ids = list(range(num_samples))
         self.num_classes = num_classes
         self.num_samples = num_samples
         self.precision = precision
+        self.min_targets_per_image = min_targets_per_image
+        self.max_targets_per_image = max_targets_per_image
     def __len__(self):
         return len(self.ids)
 
@@ -31,13 +33,13 @@ class SyntheticDataset:
         image = mx.array(np.random.randn(height, width, 3))
         if self.precision == 'half':
             image = image.astype(mx.float16)
-        max_targets_per_image = 50
-        num_targets = np.random.randint(1, max_targets_per_image + 1)
-        labels_np = np.random.randint(0, self.num_classes, size=(num_targets,), dtype=np.int8)
+        
+        num_targets = np.random.randint(self.min_targets_per_image, self.max_targets_per_image + 1)
+        labels_np = np.random.randint(0, self.num_classes, size=(num_targets,), dtype=np.int16)
         boxes_np = self.generate_bounding_boxes(num_targets)
         if self.precision == 'half':
             target = {
-                'labels': mx.array(labels_np).astype(mx.int8),
+                'labels': mx.array(labels_np).astype(mx.int16),
                 'boxes': mx.array(boxes_np).astype(mx.float16)
             }
         else:
@@ -48,5 +50,11 @@ class SyntheticDataset:
         return image, target
 
 def build(image_set, args):
-    dataset = SyntheticDataset(num_samples=args.num_samples_synthetic_dataset, num_classes=args.num_classes_synthetic_dataset, precision=args.precision)
+    dataset = SyntheticDataset(
+        num_samples=args.num_samples_synthetic_dataset, 
+        num_classes=args.num_classes_synthetic_dataset, 
+        precision=args.precision,
+        min_targets_per_image=args.min_targets_per_image,
+        max_targets_per_image=args.max_targets_per_image
+        )
     return dataset

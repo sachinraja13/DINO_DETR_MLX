@@ -420,10 +420,12 @@ class SetCriterion:
 
         losses = {}
         losses['loss_bbox'] = loss_bbox.sum() / num_boxes
-
-        loss_giou = 1 - mx.diag(box_ops.generalized_box_iou(
-            box_ops.box_cxcywh_to_xyxy(src_boxes),
-            box_ops.box_cxcywh_to_xyxy(target_boxes)))
+        if src_boxes.shape[0] > 0 and target_boxes.shape[0] > 0:
+            loss_giou = 1 - mx.diag(box_ops.generalized_box_iou(
+                box_ops.box_cxcywh_to_xyxy(src_boxes),
+                box_ops.box_cxcywh_to_xyxy(target_boxes)))
+        else:
+            loss_giou = mx.array(1.0)
         losses['loss_giou'] = loss_giou.sum() / num_boxes
 
         # calculate the x,y and h,w loss

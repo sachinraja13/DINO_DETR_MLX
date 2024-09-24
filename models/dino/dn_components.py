@@ -43,11 +43,11 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
 
         single_pad = int(max(known_num))
         pad_size = int(single_pad * 2 * dn_number)
-        positive_idx = mx.arange(len(boxes)).astype(mx.int32)  # Equivalent to torch.tensor(range(len(boxes))).long()
+        positive_idx = mx.arange(len(boxes)).astype(mx.int16)  # Equivalent to torch.tensor(range(len(boxes))).long()
         positive_idx = mx.tile(positive_idx[None, ...], (dn_number, 1))  # Equivalent to repeat(dn_number, 1)
 
         # Adjust based on dn_number
-        positive_idx += (mx.arange(dn_number).astype(mx.int32) * len(boxes) * 2).reshape(-1, 1)  # Equivalent to torch addition
+        positive_idx += (mx.arange(dn_number).astype(mx.int16) * len(boxes) * 2).reshape(-1, 1)  # Equivalent to torch addition
 
         # Flatten the positive_idx
         positive_idx = positive_idx.flatten()
@@ -73,7 +73,6 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
 
         input_label_embed = label_enc(known_labels_expaned)
         input_bbox_embed = inverse_sigmoid(known_bbox_expand)
-
         padding_label = mx.zeros((pad_size, hidden_dim))
         padding_bbox = mx.zeros((pad_size, 4))
 

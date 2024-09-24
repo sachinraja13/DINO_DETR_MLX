@@ -403,7 +403,7 @@ class CocoDetection(torchvision.datasets.CocoDetection):
             if isinstance(v, torch.Tensor):
                 if v.dtype == torch.int64:
                     if self.precision == 'half':
-                        target[k] = mx.array(v.numpy(), mx.int8)
+                        target[k] = mx.array(v.numpy(), mx.int16)
                     else:
                         target[k] = mx.array(v.numpy(), mx.int32)
                 else:

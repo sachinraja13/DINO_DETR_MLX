@@ -6,6 +6,8 @@ dataset_file = 'synthetic'
 num_classes=91
 num_samples_synthetic_dataset = 1000
 num_classes_synthetic_dataset = 91
+min_targets_per_image = 50
+max_targets_per_image = 200
 
 use_custom_dataloader = True
 reinstantiate_dataloader_every_epoch = True
@@ -98,7 +100,7 @@ dec_pred_bbox_embed_share = True
 dec_pred_class_embed_share = True
 
 # for dn
-use_dn = False
+use_dn = True
 dn_number = 100
 dn_box_noise_scale = 0.4
 dn_label_noise_ratio = 0.5
