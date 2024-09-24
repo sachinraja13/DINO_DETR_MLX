@@ -59,10 +59,10 @@ def train_one_epoch(model: nn.Module, criterion,
 
 
 
-        # metric_logger.update(loss=loss_value, **loss_dict)
-        # if 'class_error' in loss_dict:
-        #     metric_logger.update(class_error=loss_dict['class_error'])
-        # metric_logger.update(lr=optimizer.learning_rate)
+        metric_logger.update(loss=loss_value, **loss_dict)
+        if 'class_error' in loss_dict:
+            metric_logger.update(class_error=loss_dict['class_error'])
+        metric_logger.update(lr=optimizer.learning_rate)
 
         _cnt += 1
         if args.debug:
