@@ -1,5 +1,7 @@
 _base_ = ['coco_transformer.py']
 
+precision = 'full'
+
 dataset_file = 'synthetic'
 num_classes=91
 num_samples_synthetic_dataset = 1000
@@ -96,7 +98,7 @@ dec_pred_bbox_embed_share = True
 dec_pred_class_embed_share = True
 
 # for dn
-use_dn = True
+use_dn = False
 dn_number = 100
 dn_box_noise_scale = 0.4
 dn_label_noise_ratio = 0.5

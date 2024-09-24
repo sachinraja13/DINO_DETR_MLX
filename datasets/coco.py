@@ -351,11 +351,12 @@ dataset_hook_register = {
 
 
 class CocoDetection(torchvision.datasets.CocoDetection):
-    def __init__(self, img_folder, ann_file, transforms, return_masks, aux_target_hacks=None):
+    def __init__(self, img_folder, ann_file, transforms, return_masks, aux_target_hacks=None, precision='full'):
         super(CocoDetection, self).__init__(img_folder, ann_file)
         self._transforms = transforms
         self.prepare = ConvertCocoPolysToMask(return_masks)
         self.aux_target_hacks = aux_target_hacks
+        self.precision = precision
 
     def change_hack_attr(self, hackclassname, attrkv_dict):
         target_class = dataset_hook_register[hackclassname]
@@ -396,12 +397,20 @@ class CocoDetection(torchvision.datasets.CocoDetection):
             for hack_runner in self.aux_target_hacks:
                 target, img = hack_runner(target, img=img)
         img = mx.array(img.numpy()).transpose(1, 2, 0)
+        if self.precision == 'half':
+            img = img.astype(mx.float16)
         for k,v in target.items():
             if isinstance(v, torch.Tensor):
                 if v.dtype == torch.int64:
-                    target[k] = mx.array(v.numpy(), mx.int32)
+                    if self.precision == 'half':
+                        target[k] = mx.array(v.numpy(), mx.int8)
+                    else:
+                        target[k] = mx.array(v.numpy(), mx.int32)
                 else:
-                    target[k] = mx.array(v.numpy())
+                    if self.precision == 'half':
+                        target[k] = mx.array(v.numpy(), mx.float16)
+                    else:
+                        target[k] = mx.array(v.numpy())
 
         return img, target
 
@@ -672,7 +681,7 @@ def build(image_set, args):
     dataset = CocoDetection(img_folder, ann_file, 
             transforms=make_coco_transforms(image_set, fix_size=args.fix_size, strong_aug=strong_aug, args=args), 
             return_masks=args.masks,
-            aux_target_hacks=aux_target_hacks_list,
+            aux_target_hacks=aux_target_hacks_list, precision=args.precision
         )
 
     return dataset

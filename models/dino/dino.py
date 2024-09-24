@@ -291,7 +291,7 @@ class DINO(nn.Module):
         for dec_lid, (layer_ref_sig, layer_bbox_embed, layer_hs) in enumerate(zip(reference[:-1], self.bbox_embed, hs)):
             layer_delta_unsig = layer_bbox_embed(layer_hs)
             layer_outputs_unsig = layer_delta_unsig  + inverse_sigmoid(layer_ref_sig)
-            layer_outputs_unsig = mx.sigmoid(layer_outputs_unsig)
+            layer_outputs_unsig = nn.sigmoid(layer_outputs_unsig)
             outputs_coord_list.append(layer_outputs_unsig)
         outputs_coord_list = mx.stack(outputs_coord_list)        
 
@@ -321,7 +321,7 @@ class DINO(nn.Module):
                 for layer_id, (layer_box_embed, layer_class_embed, layer_hs_enc, layer_ref_enc) in enumerate(zip(self.enc_bbox_embed, self.enc_class_embed, hs_enc[:-1], ref_enc[:-1])):
                     layer_enc_delta_unsig = layer_box_embed(layer_hs_enc)
                     layer_enc_outputs_coord_unsig = layer_enc_delta_unsig + inverse_sigmoid(layer_ref_enc)
-                    layer_enc_outputs_coord = mx.sigmoid(layer_enc_outputs_coord_unsig)
+                    layer_enc_outputs_coord = nn.sigmoid(layer_enc_outputs_coord_unsig)
                     layer_enc_outputs_class = layer_class_embed(layer_hs_enc)
                     enc_outputs_coord.append(layer_enc_outputs_coord)
                     enc_outputs_class.append(layer_enc_outputs_class)
@@ -375,7 +375,7 @@ class SetCriterion:
         idx = self._get_src_permutation_idx(indices)
         target_classes_o = mx.concatenate([t["labels"][J] for t, (_, J) in zip(targets, indices)])
         target_classes = mx.full(src_logits.shape[:2], self.num_classes,
-                                    dtype=mx.int32)
+                                    dtype=mx.int16)
         target_classes[idx] = target_classes_o
 
         target_classes_onehot = mx.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2]+1],

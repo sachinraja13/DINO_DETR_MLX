@@ -56,9 +56,7 @@ def train_one_epoch(model: nn.Module, criterion,
         grads, total_norm = optim.clip_grad_norm(grads, max_norm=max_norm)
         # print(grads)
         optimizer.update(model, grads)
-
-
-
+        mx.eval(model, optimizer.state)
         metric_logger.update(loss=loss_value, **loss_dict)
         if 'class_error' in loss_dict:
             metric_logger.update(class_error=loss_dict['class_error'])
@@ -108,7 +106,7 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir,
 
         loss_value, loss_dict, outputs = loss_fn(model, samples, targets, criterion, need_tgt_for_training, return_outputs=False)
         weight_dict = criterion.weight_dict
-
+        mx.eval(model)
         metric_logger.update(loss=loss_value, **loss_dict)
 
         if 'class_error' in loss_dict:
@@ -124,10 +122,10 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir,
 
         
         if args.save_results:
-            # res_score = outputs['res_score']
-            # res_label = outputs['res_label']
-            # res_bbox = outputs['res_bbox']
-            # res_idx = outputs['res_idx']
+            res_score = outputs['res_score']
+            res_label = outputs['res_label']
+            res_bbox = outputs['res_bbox']
+            res_idx = outputs['res_idx']
 
 
             for i, (tgt, res, outbbox) in enumerate(zip(targets, results, outputs['pred_boxes'])):
@@ -219,14 +217,12 @@ def test(model, criterion, postprocessors, data_loader, base_ds, device, output_
     for samples, targets in metric_logger.log_every(data_loader, 10, header, logger=logger):
 
         outputs = model(samples)
-        # loss_dict = criterion.forward(outputs, targets)
-        # weight_dict = criterion.weight_dict
-
-        # metric_logger.update(loss=sum(loss_dict.values()),
-        #                      **loss_dict)
-        #                     
-        # if 'class_error' in loss_dict:
-        #     metric_logger.update(class_error=loss_dict['class_error'])
+        mx.eval(model)
+        metric_logger.update(loss=sum(loss_dict.values()),
+                             **loss_dict)
+                            
+        if 'class_error' in loss_dict:
+            metric_logger.update(class_error=loss_dict['class_error'])
 
         orig_target_sizes = mx.stack([t["orig_size"] for t in targets], axis=0)
         results = postprocessors['bbox'](outputs, orig_target_sizes, not_to_xyxy=True)
