@@ -142,12 +142,9 @@ class TransformerEncoder(nn.Module):
                 output_memory = self.enc_norm[layer_id](self.enc_proj[layer_id](output_memory))
                 
                 # Gather reference tokens
-                # ref_token_coord = torch.gather(output_proposals, 1, ref_token_index.unsqueeze(-1).repeat(1, 1, 4))
                 topk = self.num_queries
                 enc_outputs_class = self.class_embed[layer_id](output_memory)
-                # enc_outputs_class_max = enc_outputs_class.max(axis=-1)
-                # sorted_indices = mx.argsort(enc_outputs_class_max)
-                # ref_token_index = sorted_indices[:, -topk:][:, ::-1]
+                # ref_token_index = mx.repeat(mx.arange(enc_outputs_class.shape[1])[None, :], batch_size, axis=0)
                 ref_token_index = mx.argpartition(enc_outputs_class.max(axis=-1) * -1, topk , axis=1)[:, :topk] 
                 # Final gathered output
                 ref_token_coord = output_proposals[mx.arange(batch_size)[:, None, None], ref_token_index[..., None], mx.arange(4)[None, None, :]]

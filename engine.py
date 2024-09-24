@@ -25,14 +25,13 @@ def loss_fn(model, nested_tensor, targets, criterion, need_tgt_for_training=Fals
     weight_dict = criterion.weight_dict
     losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
     loss = sum(loss for loss in loss_dict.values())
-    print(loss_dict)
     if return_outputs:
         return loss, loss_dict, outputs
     return loss, loss_dict
 
 def train_one_epoch(model: nn.Module, criterion,
                     data_loader: Iterable, optimizer: optim.Optimizer, epoch: int, max_norm: float = 0, 
-                    wo_class_error=False, args=None, logger=None):
+                    wo_class_error=False, args=None, logger=None, print_freq=100):
 
     try:
         need_tgt_for_training = args.use_dn
@@ -45,7 +44,6 @@ def train_one_epoch(model: nn.Module, criterion,
     if not wo_class_error:
         metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
-    print_freq = 10
     loss_and_grad_fn = nn.value_and_grad(model, loss_fn)
     _cnt = 0
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header, logger=logger):
@@ -54,7 +52,6 @@ def train_one_epoch(model: nn.Module, criterion,
 
         if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
-            print(loss_dict)
             sys.exit(1)
         grads, total_norm = optim.clip_grad_norm(grads, max_norm=max_norm)
         # print(grads)
@@ -62,10 +59,10 @@ def train_one_epoch(model: nn.Module, criterion,
 
 
 
-        metric_logger.update(loss=loss_value, **loss_dict)
-        if 'class_error' in loss_dict:
-            metric_logger.update(class_error=loss_dict['class_error'])
-        metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+        # metric_logger.update(loss=loss_value, **loss_dict)
+        # if 'class_error' in loss_dict:
+        #     metric_logger.update(class_error=loss_dict['class_error'])
+        # metric_logger.update(lr=optimizer.learning_rate)
 
         _cnt += 1
         if args.debug:

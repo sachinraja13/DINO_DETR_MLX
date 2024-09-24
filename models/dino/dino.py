@@ -283,7 +283,7 @@ class DINO(nn.Module):
             input_query_bbox = input_query_label = attn_mask = dn_meta = None
 
         hs, reference, hs_enc, ref_enc, init_box_proposal = self.transformer(srcs, masks, input_query_bbox, poss,input_query_label,attn_mask)
-        # In case num object=0
+        # In case num object=0, we need to add a dummy object
         hs[0] += self.label_enc.weight[0,0]*0.0
         # deformable-detr-like anchor update
         # reference_before_sigmoid = inverse_sigmoid(reference[:-1]) # n_dec, bs, nq, 4

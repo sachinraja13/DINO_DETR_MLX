@@ -48,7 +48,7 @@ class SmoothedValue(object):
 
     @property
     def avg(self):
-        d = np.asarray(list(self.deque), dtype=mx.float32)
+        d = np.asarray(list(self.deque), dtype=np.float32)
         return np.mean(d)
 
     @property

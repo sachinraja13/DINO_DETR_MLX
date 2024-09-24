@@ -2,6 +2,7 @@ import torch.utils.data
 import torchvision
 
 from .coco import build as build_coco
+from .synthetic import build as build_synthetic
 
 
 def get_coco_api_from_dataset(dataset):
@@ -17,4 +18,6 @@ def get_coco_api_from_dataset(dataset):
 def build_dataset(image_set, args):
     if args.dataset_file == 'coco':
         return build_coco(image_set, args)
+    if args.dataset_file == 'synthetic':
+        return build_synthetic(image_set, args)
     raise ValueError(f'dataset {args.dataset_file} not supported')

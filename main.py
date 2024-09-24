@@ -9,12 +9,12 @@ import time
 from pathlib import Path
 import os, sys
 import numpy as np
-
+from pprint import pprint
 import mlx.core as mx
 import mlx.optimizers as optim
 from mlx.utils import tree_flatten
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, BatchSampler
-
+from datasets.custom_dataset_loader import CustomDataLoader
 from util.logger import setup_logger
 from util.slconfig import DictAction, SLConfig
 from util.utils import BestMetricHolder
@@ -35,7 +35,7 @@ def get_args_parser():
         'in xxx=yyy format will be merged into config file.')
 
     # dataset parameters
-    parser.add_argument('--dataset_file', default='coco')
+    # parser.add_argument('--dataset_file', default='coco')
     parser.add_argument('--coco_path', type=str, default='/comp_robot/cv_public_dataset/COCO2017/')
     parser.add_argument('--remove_difficult', action='store_true')
     parser.add_argument('--fix_size', action='store_true')
@@ -54,7 +54,7 @@ def get_args_parser():
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--eval', action='store_true')
-    parser.add_argument('--num_workers', default=2, type=int)
+    parser.add_argument('--num_workers', default=1, type=int)
     parser.add_argument('--test', action='store_true')
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--find_unused_params', action='store_true')
@@ -106,7 +106,6 @@ def main(args):
         json.dump(vars(args), f, indent=2)
     logger.info("Full config saved to {}".format(save_json_path))
     logger.info("args: " + str(args) + '\n')
-    print(args)
                 
     mx.set_default_device(mx.gpu)
     # fix the seed for reproducibility
@@ -127,24 +126,32 @@ def main(args):
     lr_schedule = optim.step_decay(args.lr, args.lr_drop_factor, args.lr_drop_steps)
     optimizer = optim.AdamW(learning_rate=lr_schedule, weight_decay=args.weight_decay)
 
-
+    
     dataset_train = build_dataset(image_set='train', args=args)
     dataset_val = build_dataset(image_set='val', args=args)
+    
+    data_loader_train = None
+    data_loader_val = None
+    if not args.use_custom_dataloader:
+        sampler_train = RandomSampler(dataset_train)
+        sampler_val = SequentialSampler(dataset_val)
 
-    sampler_train = RandomSampler(dataset_train)
-    sampler_val = SequentialSampler(dataset_val)
+        batch_sampler_train = BatchSampler(
+            sampler_train, args.batch_size, drop_last=True)
 
-    batch_sampler_train = BatchSampler(
-        sampler_train, args.batch_size, drop_last=True)
+        data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
+                                    collate_fn=utils.collate_fn, num_workers=args.num_workers)
+        data_loader_val = DataLoader(dataset_val, 1, sampler=sampler_val,
+                                    drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
+    elif not args.reinstantiate_dataloader_every_epoch:
+        data_loader_train = CustomDataLoader(dataset_train, args.batch_size, shuffle=True, collate_fn=utils.collate_fn)
+        data_loader_val = CustomDataLoader(dataset_val, 1, shuffle=False, collate_fn=utils.collate_fn)
 
-    data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
-                                   collate_fn=utils.collate_fn, num_workers=args.num_workers)
-    data_loader_val = DataLoader(dataset_val, 1, sampler=sampler_val,
-                                 drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
 
-
-
-    base_ds = get_coco_api_from_dataset(dataset_val)
+    if args.dataset_file == 'coco':
+        base_ds = get_coco_api_from_dataset(dataset_val)
+    else:
+        base_ds = None
 
     if args.frozen_weights is not None:
         model, optimizer_state, args_json  = utils.load_complete_state(args.frozen_weights)
@@ -161,7 +168,7 @@ def main(args):
             optimizer.state = optimizer_state
             args.start_epoch = args_json['last_epoch'] + 1
 
-    if args.eval:
+    if args.eval and args.base_ds is not None:
         os.environ['EVAL_FLAG'] = 'TRUE'
         test_stats, coco_evaluator = evaluate(model, criterion, postprocessors,
                                               data_loader_val, base_ds, args.output_dir, wo_class_error=wo_class_error, args=args)
@@ -179,10 +186,13 @@ def main(args):
     start_time = time.time()
     best_map_holder = BestMetricHolder()
     for epoch in range(args.start_epoch, args.epochs):
+        if args.use_custom_dataloader and args.reinstantiate_dataloader_every_epoch:
+            data_loader_train = CustomDataLoader(dataset_train, args.batch_size, shuffle=True, collate_fn=utils.collate_fn)
+            data_loader_val = CustomDataLoader(dataset_val, 1, shuffle=False, collate_fn=utils.collate_fn)
         epoch_start_time = time.time()
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer, epoch,
-            args.clip_max_norm, wo_class_error=wo_class_error, args=args, logger=(logger if args.save_log else None))
+            args.clip_max_norm, wo_class_error=wo_class_error, args=args, logger=(logger if args.save_log else None), print_freq=args.print_freq)
         if args.output_dir:
             checkpoint_paths = [Path(output_dir / 'checkpoint')]
 
@@ -197,23 +207,24 @@ def main(args):
                 state_dict = utils.get_state_dict(model, optimizer, epoch, args)
                 utils.save_complete_state(path_dict, state_dict)           
         # eval
-        test_stats, coco_evaluator = evaluate(
-            model, criterion, postprocessors, data_loader_val, base_ds, args.output_dir,
-            wo_class_error=wo_class_error, args=args, logger=(logger if args.save_log else None)
-        )
-        map_regular = test_stats['coco_eval_bbox'][0]
-        _isbest = best_map_holder.update(map_regular, epoch, is_ema=False)
-        if _isbest:
-            checkpoint_path = Path(output_dir / 'checkpoint_best_regular')
-            path_dict = utils.get_state_path_dict(checkpoint_path)
-            state_dict = utils.get_state_dict(model, optimizer, epoch, args)
-            utils.save_complete_state(path_dict, state_dict)
-        log_stats = {
-            **{f'train_{k}': v for k, v in train_stats.items()},
-            **{f'test_{k}': v for k, v in test_stats.items()},
-        }
+        if args.base_ds is not None:
+            test_stats, coco_evaluator = evaluate(
+                model, criterion, postprocessors, data_loader_val, base_ds, args.output_dir,
+                wo_class_error=wo_class_error, args=args, logger=(logger if args.save_log else None)
+            )
+            map_regular = test_stats['coco_eval_bbox'][0]
+            _isbest = best_map_holder.update(map_regular, epoch, is_ema=False)
+            if _isbest:
+                checkpoint_path = Path(output_dir / 'checkpoint_best_regular')
+                path_dict = utils.get_state_path_dict(checkpoint_path)
+                state_dict = utils.get_state_dict(model, optimizer, epoch, args)
+                utils.save_complete_state(path_dict, state_dict)
+            log_stats = {
+                **{f'train_{k}': v for k, v in train_stats.items()},
+                **{f'test_{k}': v for k, v in test_stats.items()},
+            }
 
-        log_stats.update(best_map_holder.summary())
+            log_stats.update(best_map_holder.summary())
 
         ep_paras = {
                 'epoch': epoch,

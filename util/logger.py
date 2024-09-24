@@ -46,6 +46,7 @@ def setup_logger(
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     logger.propagate = False
+    logging.StreamHandler(stream=None)
 
     if abbrev_name is None:
         abbrev_name = name

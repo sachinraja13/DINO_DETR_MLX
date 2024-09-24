@@ -60,13 +60,13 @@ def generalized_box_iou(boxes1, boxes2):
     Returns a [N, M] pairwise matrix, where N = len(boxes1)
     and M = len(boxes2)
     """
-    assert (boxes1[:, 2:] >= boxes1[:, :2]).all()
-    assert (boxes2[:, 2:] >= boxes2[:, :2]).all()
+    assert (boxes1[..., 2:] >= boxes1[..., :2]).all()
+    assert (boxes2[..., 2:] >= boxes2[..., :2]).all()
 
     iou, union = box_iou(boxes1, boxes2)
 
-    lt = mx.minimum(boxes1[:, None, :2], boxes2[:, :2])
-    rb = mx.maximum(boxes1[:, None, 2:], boxes2[:, 2:])
+    lt = mx.minimum(boxes1[..., None, :2], boxes2[..., :2])
+    rb = mx.maximum(boxes1[..., None, 2:], boxes2[..., 2:])
 
     wh = mx.clip((rb - lt), 0, None)  # [N,M,2]
     area = wh[:, :, 0] * wh[:, :, 1]

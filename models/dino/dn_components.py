@@ -1,5 +1,3 @@
-
-import numpy as np
 import mlx.core as mx
 import mlx.nn as nn
 from mlx.utils import tree_flatten
@@ -31,19 +29,17 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
         labels = mx.concatenate([t['labels'] for t in targets])
         boxes = mx.concatenate([t['boxes'] for t in targets])
         batch_idx = mx.concatenate([mx.full(t['labels'].shape, i) for i, t in enumerate(targets)])
-        known_indice = mx.array(np.stack(np.nonzero(unmask_label + unmask_bbox), axis=-1))
+        known_indice = mx.arange(unmask_label.shape[0])
         known_indice = mx.tile(known_indice, (2 * dn_number,)).flatten()
         known_labels = mx.tile(labels, (2 * dn_number,1)).flatten()
         known_bid = mx.tile(batch_idx, (2 * dn_number,1)).flatten()
         known_bboxs = mx.tile(boxes, (2 * dn_number, 1))
         known_labels_expaned = mx.array(known_labels)
         known_bbox_expand = mx.array(known_bboxs)
-
         if label_noise_ratio > 0:
-            p = np.random.uniform(size=known_labels_expaned.shape)
-            chosen_indice = mx.array(np.stack(np.nonzero(p < (label_noise_ratio * 0.5)), axis=-1).flatten())
-            new_label = mx.random.randint(0, num_classes, shape=chosen_indice.shape)
-            known_labels_expaned[chosen_indice] = new_label
+            p = mx.random.uniform(shape=known_labels_expaned.shape)
+            new_label = mx.random.randint(0, num_classes, shape=known_labels_expaned.shape)
+            known_labels_expaned = mx.where(p < (label_noise_ratio * 0.5), known_labels_expaned, new_label)
 
         single_pad = int(max(known_num))
         pad_size = int(single_pad * 2 * dn_number)
@@ -66,7 +62,8 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
             diff = mx.zeros_like(known_bboxs)
             diff[:, :2] = known_bboxs[:, 2:] / 2
             diff[:, 2:] = known_bboxs[:, 2:] / 2
-            rand_sign = mx.array(np.random.choice([-1.0, 1.0], size=known_bboxs.shape))
+            sign_choices = mx.array([-1.0, 1.0])
+            rand_sign = sign_choices[mx.random.categorical(mx.array([0.5, 0.5]), shape=known_bboxs.shape)]
             rand_part = mx.random.uniform(shape=known_bboxs.shape)
             rand_part[negative_idx] += 1.0
             known_bbox_ = mx.clip(known_bbox_ + rand_sign * rand_part * diff * box_noise_scale , 0.0, 1.0) 
@@ -86,8 +83,8 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
             map_known_indice = mx.concatenate([mx.arange(num) for num in known_num])  # [1,2, 1,2,3]
             map_known_indice = mx.concatenate([map_known_indice + single_pad * i for i in range(2 * dn_number)])
         if len(known_bid):
-            input_query_label[known_bid, map_known_indice,:] = input_label_embed
-            input_query_bbox[known_bid, map_known_indice, :] =  input_bbox_embed
+            input_query_label[known_bid, map_known_indice] = input_label_embed
+            input_query_bbox[known_bid, map_known_indice] =  input_bbox_embed
 
         tgt_size = pad_size + num_queries
         attn_mask = mx.ones((tgt_size, tgt_size))

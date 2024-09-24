@@ -1,6 +1,12 @@
 _base_ = ['coco_transformer.py']
 
+dataset_file = 'synthetic'
 num_classes=91
+num_samples_synthetic_dataset = 1000
+num_classes_synthetic_dataset = 91
+
+use_custom_dataloader = True
+reinstantiate_dataloader_every_epoch = True
 
 lr = 0.0001
 param_dict_type = 'default'
@@ -14,6 +20,7 @@ save_checkpoint_interval = 1
 clip_max_norm = 0.1
 lr_drop_list = [33, 45]
 
+print_freq = 10
 
 modelname = 'dino'
 frozen_weights = None
@@ -89,8 +96,8 @@ dec_pred_bbox_embed_share = True
 dec_pred_class_embed_share = True
 
 # for dn
-use_dn = False
-dn_number = 0
+use_dn = True
+dn_number = 100
 dn_box_noise_scale = 0.4
 dn_label_noise_ratio = 0.5
 embed_init_tgt = True
