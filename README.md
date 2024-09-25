@@ -1,6 +1,6 @@
 # DINO DETR - Apple MLX Port
 
-This repository is an adaptation of the **DINO DETR (Deformable DETR)** ([here](https://github.com/IDEA-Research/DINO)) object detection model for **Apple's MLX** platform, enabling efficient and scalable deployment of advanced object detection models on Apple hardware. DINO DETR is a state-of-the-art object detection model that builds upon DETR by introducing deformable attention mechanisms and better query matching strategies. For the time being, distributed training is not supported. The ported model also does not support segmentation as of now.
+This repository is an adaptation of the **DINO DETR** ([here](https://github.com/IDEA-Research/DINO)) object detection model for **Apple's MLX** platform, enabling efficient and scalable deployment of advanced object detection models on Apple hardware. DINO DETR is a state-of-the-art object detection model that builds upon DETR by introducing deformable attention mechanisms and better query matching strategies. For the time being, distributed training is not supported. The ported model also does not support segmentation as of now.
 
 ## Table of Contents
 
