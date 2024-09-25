@@ -29,16 +29,18 @@ def loss_fn(model, nested_tensor, targets, criterion, need_tgt_for_training=Fals
         return loss, loss_dict, outputs
     return loss, loss_dict
 
+
 def train_one_epoch(model: nn.Module, criterion,
                     data_loader: Iterable, optimizer: optim.Optimizer, epoch: int, max_norm: float = 0, 
                     wo_class_error=False, args=None, logger=None, print_freq=100):
-
+    model.train()
+    state = [model.state, optimizer.state, mx.random.state]
+    mx.eval(state)
     try:
         need_tgt_for_training = args.use_dn
     except:
         need_tgt_for_training = False
 
-    model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     if not wo_class_error:
@@ -56,7 +58,7 @@ def train_one_epoch(model: nn.Module, criterion,
         grads, total_norm = optim.clip_grad_norm(grads, max_norm=max_norm)
         # print(grads)
         optimizer.update(model, grads)
-        mx.eval(model, optimizer.state)
+        mx.eval(state)
         metric_logger.update(loss=loss_value, **loss_dict)
         if 'class_error' in loss_dict:
             metric_logger.update(class_error=loss_dict['class_error'])
