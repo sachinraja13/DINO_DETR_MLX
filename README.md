@@ -46,7 +46,6 @@ For Training:
 
 ```
 export coco_path = 'path/to/coco/dataset'
-coco_path=$1
 python main.py \
  --output_dir logs/DINO/R50-MS4 -c config/DINO/DINO_4scale_coco2017.py --coco_path $coco_path \
  --options embed_init_tgt=TRUE
