@@ -657,13 +657,14 @@ def get_aux_target_hacks_list(image_set, args):
 
 def build(image_set, args):
     root = Path(args.coco_path)
+    year = args.coco_year
     mode = 'instances'
     PATHS = {
-        "train": (root / "train2014", root / "annotations" / f'{mode}_train2014.json'),
-        "train_reg": (root / "train2014", root / "annotations" / f'{mode}_train2014.json'),
-        "val": (root / "val2014", root / "annotations" / f'{mode}_val2014.json'),
-        "eval_debug": (root / "val2014", root / "annotations" / f'{mode}_val2014.json'),
-        "test": (root / "test2014", root / "annotations" / 'image_info_test-dev2014.json' ),
+        "train": (root / "train" + year, root / "annotations" / f'{mode}_train2014.json'),
+        "train_reg": (root / "train" + year, root / "annotations" / f'{mode}_train2014.json'),
+        "val": (root / "val" + year, root / "annotations" / f'{mode}_val2014.json'),
+        "eval_debug": (root / "val" + year, root / "annotations" / f'{mode}_val2014.json'),
+        "test": (root / "test" + year, root / "annotations" / 'image_info_test-dev2014.json' ),
     }
 
     # add some hooks to datasets
