@@ -2,6 +2,9 @@ _base_ = ['coco_transformer.py']
 
 precision = 'full'
 
+load_pytorch_weights = True
+pytorch_weights_path = 'pytorch_weights/torch_model.pth'
+
 dataset_file = 'synthetic'
 num_classes=91
 num_samples_synthetic_dataset = 1000
@@ -34,7 +37,7 @@ use_checkpoint = False
 dilation = False
 position_embedding = 'sine'
 pe_temperature = 20
-return_interm_indices = [1, 2, 3, 4]
+return_interm_indices = [1, 2, 3]
 backbone_freeze_keywords = None
 enc_layers = 6
 dec_layers = 6
@@ -100,7 +103,7 @@ dec_pred_bbox_embed_share = True
 dec_pred_class_embed_share = True
 
 # for dn
-use_dn = True
+use_dn = False
 dn_number = 100
 dn_box_noise_scale = 0.4
 dn_label_noise_ratio = 0.5

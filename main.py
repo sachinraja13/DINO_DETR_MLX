@@ -116,6 +116,8 @@ def main(args):
 
     # build model
     model, criterion, postprocessors = build_model_main(args)
+    if args.load_pytorch_weights:
+        model = utils.load_mlx_model_with_pytorch_weights(model, args.pytorch_weights_path, logger)
     if args.precision == 'half':
         logger.info("Changing weights to half precision")
         model.apply(lambda x: x.astype(mx.bfloat16))
@@ -125,7 +127,7 @@ def main(args):
     # Count the total number of trainable parameters
     n_parameters = sum(p.size for _, p in tree_flatten(trainable_params))
     logger.info('number of params:'+str(n_parameters))
-    logger.info("params:\n"+json.dumps({n: (p.size, str(p.dtype)) for n, p in tree_flatten(trainable_params)}, indent=2))
+    logger.info("params:\n"+json.dumps({n: p.size for n, p in tree_flatten(trainable_params)}, indent=2))
     
     lr_schedule = optim.step_decay(args.lr, args.lr_drop_factor, args.lr_drop_steps)
     optimizer = optim.AdamW(learning_rate=lr_schedule, weight_decay=args.weight_decay)

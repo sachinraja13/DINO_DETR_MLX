@@ -249,7 +249,8 @@ class DINO(nn.Module):
         masks = []
         for l, feat in enumerate(features):
             src, mask = feat.decompose()
-            srcs.append(self.input_proj[l](src))
+            src = self.input_proj[l](src)
+            srcs.append(src)
             masks.append(mask)
             assert mask is not None
         if self.num_feature_levels > len(srcs):
@@ -261,14 +262,10 @@ class DINO(nn.Module):
                     src = self.input_proj[l](srcs[-1])
                 m = samples.mask
                 interpolation = nn.Upsample(
-                    scale_factor=src.shape[-2] / m.shape[-2], mode="linear"
+                    scale_factor=(src.shape[1] / m.shape[1], src.shape[2] / m.shape[2]), mode="nearest"
                 )
-                mask = (
-                    interpolation(m[..., None].astype(mx.float32))
-                    .astype(mx.bool_)
-                    .squeeze(-1)
-                )
-                pos_l = self.backbone[1](NestedTensor(src, mask)).astype(src.dtype)
+                mask = interpolation(m[..., None].astype(mx.float32)).astype(mx.bool_).squeeze(-1)
+                pos_l = self.backbone.layers[1](NestedTensor(src, mask)).astype(src.dtype)
                 srcs.append(src)
                 masks.append(mask)
                 poss.append(pos_l)

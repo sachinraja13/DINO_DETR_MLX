@@ -120,7 +120,7 @@ def initialize_mlx_model(mlx_model, numpy_arrays):
             print("Key not found in mlx model: ", name)
     return mlx_model
 
-def initialize_models(pt_model, mlx_model):
+def initialize_pytorch_and_numpy_models_with_same_random_params(pt_model, mlx_model):
     # Initialize parameters with random NumPy arrays
     pt_model, numpy_arrays = initialize_numpy_arrays(pt_model)
     mlx_params = initialize_mlx_model(mlx_model, numpy_arrays)

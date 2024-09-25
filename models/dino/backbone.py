@@ -14,14 +14,16 @@ class BackboneBase(nn.Module):
         self,
         backbone: nn.Module,
         train_backbone: bool,
+        return_interm_layers: List[int],
         num_channels:  List[int],
-        return_interm_layers: bool,
-        strides: List[int] = [4, 8, 16, 32]
+        strides: List[int],
+        max_layers = 4
     ):
         super().__init__()
         self.body = backbone
         self.num_channels = num_channels
         self.strides = strides
+        self.return_layers_map= {f"layer{i + max_layers - len(return_interm_layers)}" : i for i in return_interm_layers}
         if not train_backbone:
             self.body.freeze()
 
@@ -29,10 +31,12 @@ class BackboneBase(nn.Module):
         xs = self.body.features(tensor_list.tensors)
         out: Dict[str, NestedTensor] = {}
         for name, x in xs.items():
+            if name not in self.return_layers_map:
+                continue
             m = tensor_list.mask
             assert m is not None
             interpolation = nn.Upsample(
-                scale_factor=(x.shape[1] / m.shape[1], x.shape[2] / m.shape[2]), mode="linear"
+                scale_factor=(x.shape[1] / m.shape[1], x.shape[2] / m.shape[2]), mode="nearest"
             )
             m = (
                 interpolation(m[..., None].astype(mx.float32))
@@ -50,11 +54,11 @@ class Backbone(BackboneBase):
         self,
         name: str,
         train_backbone: bool,
-        return_interm_layers: bool,
+        return_interm_layers: List[int],
         dilation: bool,
         batch_norm: nn.Module = FrozenBatchNorm2d,
-        num_channels: List[int] = [256, 512, 1024, 2048],
-        strides: List[int] = [8, 16, 32]
+        all_num_channels: List[int] = [256, 512, 1024, 2048],
+        all_strides: List[int] = [4, 8, 16, 32]
     ):
         if name in ['resnet50', 'resnet101']:
             backbone = getattr(resnet, name)(
@@ -63,9 +67,18 @@ class Backbone(BackboneBase):
                 norm_layer=batch_norm,
             )
             assert name not in ('resnet18', 'resnet34'), "Only resnet50 and resnet101 are available."
-            self.strides = strides
-            self.num_channels = num_channels
-            super().__init__(backbone, train_backbone, num_channels, return_interm_layers)
+            assert return_interm_layers in [[0,1,2,3], [1,2,3], [3]]
+            num_channels_all = [256, 512, 1024, 2048]
+            all_strides = [4, 8, 16, 32]
+            self.num_channels = num_channels_all[4-len(return_interm_layers):]
+            self.strides = all_strides[4-len(return_interm_layers):]
+            super().__init__(
+                    backbone=backbone, 
+                    train_backbone=train_backbone, 
+                    return_interm_layers=return_interm_layers,
+                    num_channels=self.num_channels,
+                    strides=self.strides
+                )
 
 
 class Joiner(nn.Sequential):
@@ -84,7 +97,6 @@ class Joiner(nn.Sequential):
             # position encoding
             p = self.layers[1](x)
             pos.append(p)
-
         return out, pos
 
 
@@ -104,14 +116,18 @@ def build_backbone(args):
     if not train_backbone:
         raise ValueError("Please set lr_backbone > 0")
     return_interm_indices = args.return_interm_indices
-    assert return_interm_indices in [[1,2,3,4]]
+    assert return_interm_indices in [[0, 1, 2, 3], [1, 2, 3], [2, 3], [3]]
     backbone_freeze_keywords = args.backbone_freeze_keywords
     use_checkpoint = getattr(args, 'use_checkpoint', False)
 
     if args.backbone in ['resnet50', 'resnet101']:
-        backbone = Backbone(args.backbone, train_backbone, args.dilation,   
-                                return_interm_indices,   
-                                batch_norm=FrozenBatchNorm2d)
+        backbone = Backbone(
+                        name=args.backbone, 
+                        train_backbone=train_backbone, 
+                        dilation=args.dilation,   
+                        return_interm_layers=return_interm_indices,   
+                        batch_norm=FrozenBatchNorm2d
+                    )
         bb_num_channels = backbone.num_channels
     # elif args.backbone in ['swin_T_224_1k', 'swin_B_224_22k', 'swin_B_384_22k', 'swin_L_224_22k', 'swin_L_384_22k']:
     #     pretrain_img_size = int(args.backbone.split('_')[-2])

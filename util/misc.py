@@ -18,7 +18,7 @@ import numpy as np
 import mlx.core as mx
 import mlx.nn as nn
 import colorsys
-
+from .pytorch_weights_to_mlx import load_mlx_model_with_pytorch_weights
 
 
 class SmoothedValue(object):
