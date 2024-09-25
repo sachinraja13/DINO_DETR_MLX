@@ -22,13 +22,10 @@ import mlx.core as mx
 import mlx.nn as nn
 from util import box_ops
 from util.misc import (NestedTensor, nested_tensor_from_tensor_list, interpolate, inverse_sigmoid)
-
-from .backbone import Backbone, Joiner, build_backbone
+from ..backbone import build_backbone
 from .matcher import build_matcher, HungarianMatcher
-
 from .deformable_transformer import DeformableTransformer, build_deformable_transformer
 from .utils import sigmoid_focal_loss, MLP
-from .positional_embedding import PositionEmbeddingSine
 from .dn_components import prepare_for_cdn, dn_post_process
 import numpy as np
 from ..registry import MODULE_BUILD_FUNCS
@@ -777,52 +774,3 @@ def build_dino(args):
 
     return model, criterion, postprocessors
 
-# Backbone(args.backbone, train_backbone, args.dilation,   
-#                                 return_interm_indices,   
-#                                 batch_norm=FrozenBatchNorm2d)
-
-# import torch
-# backbone = Backbone('resnet50', True, (False, False, False), False)
-# backbone = Backbone("resnet50", True, False, False)
-# position_embedding = PositionEmbeddingSine(256 // 2, normalize=True)
-# model = Joiner(backbone, position_embedding)
-# # model.num_channels = backbone.num_channels
-# transformer = DeformableTransformer()
-
-# dino = DINO(model, transformer, num_classes=5, num_queries=100, aux_loss=True, iter_update=True, query_dim=4, random_refpoints_xy=False, fix_refpoints_hw=-1, num_feature_levels=4, nheads=8, dec_pred_class_embed_share=True, dec_pred_bbox_embed_share=True, two_stage_type='standard', two_stage_bbox_embed_share=True, two_stage_class_embed_share=True, decoder_sa_type='ca_content', num_patterns=3, dn_number=100, dn_box_noise_scale=0.4, dn_label_noise_ratio=0.5, dn_labelbook_size=100)
-
-# batch_size = 2
-# height, width = 480, 640
-# images = mx.array(np.asarray(torch.randn(batch_size, height, width, 3)))
-# masks = mx.array(np.asarray(torch.zeros(batch_size, height, width, dtype=torch.bool)))
-# samples = NestedTensor(images, masks)
-
-# targets = []
-# max_targets_per_image = 50
-# for _ in range(batch_size):
-#     num_targets = np.random.randint(1, max_targets_per_image + 1)
-#     labels_np = np.random.randint(0, 5, size=(num_targets,), dtype=np.int32)
-#     boxes_np = np.random.rand(num_targets, 4).astype(np.float32)
-#     # Convert boxes to [cx, cy, w, h] format
-#     boxes_np[:, 2:] = boxes_np[:, 2:] - boxes_np[:, :2]
-#     boxes_np[:, :2] = boxes_np[:, :2] + boxes_np[:, 2:] / 2
-#     targets.append({
-#         'labels': mx.array(labels_np),
-#         'boxes': mx.array(boxes_np)
-#     })
-
-# weight_dict = {'loss_ce': 1.0, 'loss_bbox': 1.0}
-# weight_dict['loss_giou'] = 1.0
-
-# weight_dict['loss_ce_dn'] = 1.0
-# weight_dict['loss_bbox_dn'] = 1.0
-# weight_dict['loss_giou_dn'] = 1.0
-# # Run forward pass
-# outputs = dino(samples, targets)
-# matcher = HungarianMatcher(cost_class=1.0, cost_bbox=1.0, cost_giou=1.0, focal_alpha=0.25)
-# criterion = SetCriterion(num_classes=5, matcher=matcher, weight_dict={}, focal_alpha=0.5, losses=['labels', 'boxes', 'cardinality'])
-# from pprint import pprint
-# pprint(criterion(outputs, targets))
-# pprint(outputs)
-# post = PostProcess(num_select=10, nms_iou_threshold=-1)
-# pprint(post(outputs, mx.array([[480, 640],[400, 600]]), not_to_xyxy=False, test=False))
