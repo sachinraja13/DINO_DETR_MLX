@@ -29,7 +29,15 @@ class HungarianMatcher:
     while the others are un-matched (and thus treated as non-objects).
     """
 
-    def __init__(self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1, focal_alpha = 0.25):
+    def __init__(
+        self, 
+        cost_class: float = 1, 
+        cost_bbox: float = 1, 
+        cost_giou: float = 1, 
+        focal_alpha = 0.25,
+        pad_labels_to_n_max_ground_truths = False,
+        n_max_ground_truths = 500
+    ):
         """Creates the matcher
         Params:
             cost_class: This is the relative weight of the classification error in the matching cost
@@ -41,8 +49,9 @@ class HungarianMatcher:
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
         assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0, "all costs cant be 0"
-
         self.focal_alpha = focal_alpha
+        self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
+        self.n_max_ground_truths = n_max_ground_truths
         
     @staticmethod
     def compute_l1_distance(src_boxes, tgt_boxes):
@@ -76,8 +85,8 @@ class HungarianMatcher:
         out_bbox = outputs["pred_boxes"].flatten(0, 1)  # [batch_size * num_queries, 4]
 
         # Also concat the target labels and boxes
-        tgt_ids = mx.concatenate([v["labels"] for v in targets])
-        tgt_bbox = mx.concatenate([v["boxes"] for v in targets])
+        tgt_ids = mx.concatenate([v["labels"][0 : v['num_objects']] for v in targets])
+        tgt_bbox = mx.concatenate([v["boxes"][0 : v['num_objects']] for v in targets])
 
         # Compute the classification cost.
         alpha = self.focal_alpha
@@ -95,7 +104,7 @@ class HungarianMatcher:
         C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
         C = np.asarray(C.reshape(bs, num_queries, -1))
 
-        sizes = [len(v['boxes']) for v in targets]
+        sizes = [v["num_objects"] for v in targets]
         indices = []
         for i, c in enumerate(C):
             # print(c.shape)
@@ -119,7 +128,15 @@ class SimpleMinsumMatcher:
     while the others are un-matched (and thus treated as non-objects).
     """
 
-    def __init__(self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1, focal_alpha = 0.25):
+    def __init__(
+        self, 
+        cost_class: float = 1, 
+        cost_bbox: float = 1, 
+        cost_giou: float = 1, 
+        focal_alpha = 0.25,
+        pad_labels_to_n_max_ground_truths = False,
+        n_max_ground_truths = 500
+    ):
         """Creates the matcher
         Params:
             cost_class: This is the relative weight of the classification error in the matching cost
@@ -131,8 +148,9 @@ class SimpleMinsumMatcher:
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
         assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0, "all costs cant be 0"
-
         self.focal_alpha = focal_alpha
+        self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
+        self.n_max_ground_truths = n_max_ground_truths
         
     @staticmethod
     def compute_l1_distance(src_boxes, tgt_boxes):
@@ -166,8 +184,8 @@ class SimpleMinsumMatcher:
         out_bbox = outputs["pred_boxes"].flatten(0, 1)  # [batch_size * num_queries, 4]
 
         # Also concat the target labels and boxes
-        tgt_ids = mx.concatenate([v["labels"] for v in targets])
-        tgt_bbox = mx.concatenate([v["boxes"] for v in targets])
+        tgt_ids = mx.concatenate([v["labels"][0 : v['num_objects']] for v in targets])
+        tgt_bbox = mx.concatenate([v["boxes"][0 : v['num_objects']] for v in targets])
 
         # Compute the classification cost.
         alpha = self.focal_alpha
@@ -186,7 +204,7 @@ class SimpleMinsumMatcher:
         C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
         C = np.asarray(C.reshape(bs, num_queries, -1))
 
-        sizes = [len(v["boxes"]) for v in targets]
+        sizes = [v["num_objects"] for v in targets]
         indices = []
         
         for i, c in enumerate(C):
@@ -210,12 +228,14 @@ def build_matcher(args):
     if args.matcher_type == 'HungarianMatcher':
         return HungarianMatcher(
             cost_class=args.set_cost_class, cost_bbox=args.set_cost_bbox, cost_giou=args.set_cost_giou,
-            focal_alpha=args.focal_alpha
+            focal_alpha=args.focal_alpha, pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
+            n_max_ground_truths=args.n_max_ground_truths
         )
     elif args.matcher_type == 'SimpleMinsumMatcher':
         return SimpleMinsumMatcher(
             cost_class=args.set_cost_class, cost_bbox=args.set_cost_bbox, cost_giou=args.set_cost_giou,
-            focal_alpha=args.focal_alpha
+            focal_alpha=args.focal_alpha, pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
+            n_max_ground_truths=args.n_max_ground_truths
         )    
     else:
         raise NotImplementedError("Unknown args.matcher_type: {}".format(args.matcher_type))

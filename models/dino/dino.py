@@ -343,7 +343,17 @@ class SetCriterion:
         1) we compute hungarian assignment between ground truth boxes and the outputs of the model
         2) we supervise each pair of matched ground-truth / prediction (supervise class and box)
     """
-    def __init__(self, num_classes, matcher, weight_dict, focal_alpha, losses, training=True):
+    def __init__(
+        self, 
+        num_classes, 
+        matcher, 
+        weight_dict, 
+        focal_alpha, 
+        losses, 
+        training=True,
+        pad_labels_to_n_max_ground_truths = False,
+        n_max_ground_truths = 500
+    ):
         """ Create the criterion.
         Parameters:
             num_classes: number of object categories, omitting the special no-object category
@@ -359,6 +369,8 @@ class SetCriterion:
         self.losses = losses
         self.focal_alpha = focal_alpha
         self.training = training
+        self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
+        self.n_max_ground_truths = n_max_ground_truths
 
     def loss_labels(self, outputs, targets, indices, num_boxes, log=True):
         """Classification loss (Binary focal loss)
@@ -394,7 +406,7 @@ class SetCriterion:
         This is not really a loss, it is intended for logging purposes only. It doesn't propagate gradients
         """
         pred_logits = outputs['pred_logits']
-        tgt_lengths = mx.array([len(v["labels"]) for v in targets])
+        tgt_lengths = mx.array([v["num_objects"] for v in targets])
         # Count the number of predictions that are NOT "no-object" (which is the last class)
         card_pred = (pred_logits.argmax(-1) != pred_logits.shape[-1] - 1).sum(1)
         card_err = nn.losses.l1_loss(card_pred.astype(mx.float32), tgt_lengths.astype(mx.float32))
@@ -471,7 +483,7 @@ class SetCriterion:
             indices_list = []
 
         # Compute the average number of target boxes accross all nodes, for normalization purposes
-        num_boxes = sum(len(t["labels"]) for t in targets)
+        num_boxes = sum(t["num_objects"] for t in targets)
         num_boxes = mx.array([num_boxes], dtype=mx.float32)
         num_boxes = mx.clip(num_boxes, 1, None).item()
 
@@ -486,11 +498,11 @@ class SetCriterion:
             dn_pos_idx = []
             dn_neg_idx = []
             for i in range(len(targets)):
-                if len(targets[i]['labels']) > 0:
-                    t = mx.arange(len(targets[i]['labels']) - 1).astype(mx.int64)
+                if targets[i]['num_objects'] > 0:
+                    t = mx.arange(targets[i]['num_objects'] - 1).astype(mx.int32)
                     t = mx.tile(t[None, ...], (scalar, 1))
                     tgt_idx = t.flatten()
-                    output_idx = (mx.arange(scalar) * single_pad).astype(mx.int64)[..., None] + t
+                    output_idx = (mx.arange(scalar) * single_pad).astype(mx.int32)[..., None] + t
                     output_idx = output_idx.flatten()
                 else:
                     output_idx = tgt_idx = mx.array([]).astype(mx.int64)
@@ -768,9 +780,12 @@ def build_dino(args):
         weight_dict.update(interm_weight_dict)
 
     losses = ['labels', 'boxes', 'cardinality']
-    criterion = SetCriterion(num_classes, matcher=matcher, weight_dict=weight_dict,
-                             focal_alpha=args.focal_alpha, losses=losses,
-                             )
+    criterion = SetCriterion(
+        num_classes, matcher=matcher, weight_dict=weight_dict,
+        focal_alpha=args.focal_alpha, losses=losses, 
+        pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
+        n_max_ground_truths=args.n_max_ground_truths
+    )
     postprocessors = {'bbox': PostProcessor(num_select=args.num_select, nms_iou_threshold=args.nms_iou_threshold)}
 
     return model, criterion, postprocessors

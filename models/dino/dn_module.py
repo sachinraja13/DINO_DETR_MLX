@@ -22,6 +22,14 @@ class DNEncoder(nn.Module):
             # Double dn_number for positive and negative queries
             dn_number = dn_number * 2
             known = [mx.ones_like(t['labels']) for t in targets]
+            num_objects = [t['num_objects'] for t in targets]
+            labels_range = [mx.arange(t['labels'].shape[0]) for t in targets]
+            labels_range = mx.concatenate(labels_range)
+            objects_masks = []
+            for i in range(len(num_objects)):
+                objects_mask = mx.where(labels_range < num_objects[i], 1, 0)
+                objects_masks.append(objects_mask)
+            objects_masks = mx.concatenate(objects_masks)
             batch_size = len(known)
             known_num = [mx.sum(k) for k in known]
             if int(max(known_num)) == 0:
@@ -40,14 +48,16 @@ class DNEncoder(nn.Module):
             known_indice = mx.arange(unmask_label.shape[0])
             known_indice = mx.tile(known_indice, (2 * dn_number,)).flatten()
             known_labels = mx.tile(labels, (2 * dn_number,1)).flatten()
+            known_masks = mx.tile(objects_masks, (2 * dn_number,1)).flatten()
             known_bid = mx.tile(batch_idx, (2 * dn_number,1)).flatten()
             known_bboxs = mx.tile(boxes, (2 * dn_number, 1))
             known_labels_expaned = mx.array(known_labels)
             known_bbox_expand = mx.array(known_bboxs)
+            known_masks_expanded = mx.array(known_masks)
             if label_noise_ratio > 0:
                 p = mx.random.uniform(shape=known_labels_expaned.shape)
                 new_label = mx.random.randint(0, self.num_classes, shape=known_labels_expaned.shape)
-                known_labels_expaned = mx.where(p < (label_noise_ratio * 0.5), known_labels_expaned, new_label)
+                known_labels_expaned = mx.where((p < (label_noise_ratio * 0.5)), known_labels_expaned, new_label) * known_masks_expanded
 
             single_pad = int(max(known_num))
             pad_size = int(single_pad * 2 * dn_number)
@@ -78,9 +88,11 @@ class DNEncoder(nn.Module):
 
                 known_bbox_expand[:, :2] = (known_bbox_[:, :2] + known_bbox_[:, 2:]) / 2
                 known_bbox_expand[:, 2:] = known_bbox_[:, 2:] - known_bbox_[:, :2]
+                known_bbox_expand = known_bbox_expand * known_masks_expanded[..., None]
 
-            input_label_embed = self.label_enc(known_labels_expaned)
-            input_bbox_embed = inverse_sigmoid(known_bbox_expand)
+            input_label_embed = self.label_enc(known_labels_expaned) * known_masks_expanded[..., None]
+            input_bbox_embed = inverse_sigmoid(known_bbox_expand) * known_masks_expanded[..., None]
+            
             padding_label = mx.zeros((pad_size, self.hidden_dim))
             padding_bbox = mx.zeros((pad_size, 4))
 

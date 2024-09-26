@@ -23,8 +23,7 @@ def loss_fn(model, array_dict, targets, criterion, need_tgt_for_training=False, 
         outputs = model(array_dict)
     loss_dict = criterion.forward(outputs, targets)
     weight_dict = criterion.weight_dict
-    losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
-    loss = sum(loss for loss in loss_dict.values())
+    loss = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
     if return_outputs:
         return loss, loss_dict, outputs
     return loss, loss_dict
@@ -33,9 +32,33 @@ def loss_fn(model, array_dict, targets, criterion, need_tgt_for_training=False, 
 def train_one_epoch(model: nn.Module, criterion,
                     data_loader: Iterable, optimizer: optim.Optimizer, epoch: int, max_norm: float = 0, 
                     wo_class_error=False, args=None, logger=None, print_freq=100):
+    
     model.train()
     state = [model.state, optimizer.state, mx.random.state]
     mx.eval(state)
+    
+    def loss_fn(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
+        if need_tgt_for_training:
+            outputs = model(array_dict, targets)
+        else:
+            outputs = model(array_dict)
+        loss_dict = criterion.forward(outputs, targets)
+        weight_dict = criterion.weight_dict
+        loss = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
+        if return_outputs:
+            return loss, loss_dict, outputs
+        return loss, loss_dict
+    
+    def step(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
+        train_step_fn = nn.value_and_grad(model, loss_fn)
+        (loss_value, loss_dict), grads = train_step_fn(samples, targets, need_tgt_for_training, return_outputs=False)
+        if not math.isfinite(loss_value):
+            print("Loss is {}, stopping training".format(loss_value))
+            sys.exit(1)
+        grads, total_norm = optim.clip_grad_norm(grads, max_norm=max_norm)
+        optimizer.update(model, grads)
+        return loss_value, loss_dict
+    
     try:
         need_tgt_for_training = args.use_dn
     except:
@@ -46,18 +69,10 @@ def train_one_epoch(model: nn.Module, criterion,
     if not wo_class_error:
         metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
-    loss_and_grad_fn = nn.value_and_grad(model, loss_fn)
+    
     _cnt = 0
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header, logger=logger):
-        
-        (loss_value, loss_dict), grads = loss_and_grad_fn(model, samples, targets, criterion, need_tgt_for_training, return_outputs=False)
-
-        if not math.isfinite(loss_value):
-            print("Loss is {}, stopping training".format(loss_value))
-            sys.exit(1)
-        grads, total_norm = optim.clip_grad_norm(grads, max_norm=max_norm)
-        # print(grads)
-        optimizer.update(model, grads)
+        loss_value, loss_dict = step(samples, targets, need_tgt_for_training, return_outputs=False)
         mx.eval(state)
         metric_logger.update(loss=loss_value, **loss_dict)
         if 'class_error' in loss_dict:
@@ -78,12 +93,24 @@ def train_one_epoch(model: nn.Module, criterion,
 
 
 def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir, wo_class_error=False, args=None, logger=None):
+    model.eval()
+    state = [model.state, mx.random.state]
+    mx.eval(state)
+    def loss_fn(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
+        if need_tgt_for_training:
+            outputs = model(array_dict, targets)
+        else:
+            outputs = model(array_dict)
+        loss_dict = criterion.forward(outputs, targets)
+        weight_dict = criterion.weight_dict
+        loss = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
+        if return_outputs:
+            return loss, loss_dict, outputs
+        return loss, loss_dict
     try:
         need_tgt_for_training = args.use_dn
     except:
         need_tgt_for_training = False
-
-    model.eval()
 
     metric_logger = utils.MetricLogger(delimiter="  ")
     if not wo_class_error:
@@ -106,7 +133,7 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir,
     output_state_dict = {} # for debug only
     for samples, targets in metric_logger.log_every(data_loader, 10, header, logger=logger):
 
-        loss_value, loss_dict, outputs = loss_fn(model, samples, targets, criterion, need_tgt_for_training, return_outputs=False)
+        loss_value, loss_dict, outputs = loss_fn(samples, targets, need_tgt_for_training, return_outputs=False)
         weight_dict = criterion.weight_dict
         mx.eval(model)
         metric_logger.update(loss=loss_value, **loss_dict)
