@@ -16,11 +16,11 @@ import util.misc as utils
 from datasets.coco_eval import CocoEvaluator
 
 
-def loss_fn(model, nested_tensor, targets, criterion, need_tgt_for_training=False, return_outputs=False):
+def loss_fn(model, array_dict, targets, criterion, need_tgt_for_training=False, return_outputs=False):
     if need_tgt_for_training:
-        outputs = model(nested_tensor, targets)
+        outputs = model(array_dict, targets)
     else:
-        outputs = model(nested_tensor)
+        outputs = model(array_dict)
     loss_dict = criterion.forward(outputs, targets)
     weight_dict = criterion.weight_dict
     losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
@@ -134,9 +134,9 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir,
                 """
                 pred vars:
                     K: number of bbox pred
-                    score: Tensor(K),
+                    score: array(K),
                     label: list(len: K),
-                    bbox: Tensor(K, 4)
+                    bbox: array(K, 4)
                     idx: list(len: K)
                 tgt: dict.
 

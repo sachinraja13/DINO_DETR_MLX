@@ -1,8 +1,8 @@
 import math
 import mlx.nn as nn
 import mlx.core as mx
-from util.misc import NestedTensor
 import numpy as np
+from typing import Dict
 
 
 class PositionEmbeddingSine(nn.Module):
@@ -24,8 +24,8 @@ class PositionEmbeddingSine(nn.Module):
             scale = 2 * math.pi
         self.scale = scale
 
-    def __call__(self, tensor_list: NestedTensor):
-        mask = tensor_list.mask
+    def __call__(self, array_dict: Dict[str, mx.array]):
+        mask = array_dict["mask"]
         assert mask is not None
         not_mask = ~mask.astype(mx.bool_)
         y_embed = not_mask.cumsum(1)
@@ -65,11 +65,11 @@ class PositionEmbeddingLearned(nn.Module):
         nn.init.uniform_(self.row_embed.weight)
         nn.init.uniform_(self.col_embed.weight)
 
-    def __call__(self, tensor_list: NestedTensor):
-        x = tensor_list.tensors
+    def __call__(self, array_dict: Dict[str, mx.array]):
+        x = array_dict["feature_map"]
         h, w = x.shape[-2:]
-        i = mx.arange(w, device=x.device)
-        j = mx.arange(h, device=x.device)
+        i = mx.arange(w)
+        j = mx.arange(h)
         x_emb = self.col_embed(i)
         y_emb = self.row_embed(j)
         pos = (

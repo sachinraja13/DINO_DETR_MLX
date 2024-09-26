@@ -17,11 +17,11 @@ import sys
 
 import copy
 import math
-from typing import List
+from typing import List, Dict
 import mlx.core as mx
 import mlx.nn as nn
 from util import box_ops
-from util.misc import (NestedTensor, nested_tensor_from_tensor_list, interpolate, inverse_sigmoid)
+from util.misc import (nested_array_dict_array_list, interpolate, inverse_sigmoid)
 from ..backbone import build_backbone
 from .matcher import build_matcher, HungarianMatcher
 from .deformable_transformer import DeformableTransformer, build_deformable_transformer
@@ -224,10 +224,10 @@ class DINO(nn.Module):
         else:
             raise NotImplementedError('Unknown fix_refpoints_hw {}'.format(self.fix_refpoints_hw))
 
-    def __call__(self, samples: NestedTensor, targets:List=None):
-        """ The forward expects a NestedTensor, which consists of:
-               - samples.tensor: batched images, of shape [batch_size x 3 x H x W]
-               - samples.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
+    def __call__(self, samples: Dict[str, mx.array], targets:List=None):
+        """ The forward expects a Dict[str, mx.array], which consists of:
+               - samples['feature_map']: batched images, of shape [batch_size x 3 x H x W]
+               - samples['mask']: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
 
             It returns a dict with the following elements:
                - "pred_logits": the classification logits (including no-object) for all queries.
@@ -240,12 +240,13 @@ class DINO(nn.Module):
                                 dictionnaries containing the two above keys for each decoder layer.
         """
         if isinstance(samples, (list, mx.array)):
-            samples = nested_tensor_from_tensor_list(samples)
+            samples = nested_array_dict_array_list(samples)
         features, poss = self.backbone(samples)
         srcs = []
         masks = []
         for l, feat in enumerate(features):
-            src, mask = feat.decompose()
+            src = feat['feature_map']
+            mask = feat['mask']
             src = self.input_proj[l](src)
             srcs.append(src)
             masks.append(mask)
@@ -254,15 +255,16 @@ class DINO(nn.Module):
             _len_srcs = len(srcs)
             for l in range(_len_srcs, self.num_feature_levels):
                 if l == _len_srcs:
-                    src = self.input_proj[l](features[-1].tensors)
+                    src = self.input_proj[l](features[-1]['feature_map'])
                 else:
                     src = self.input_proj[l](srcs[-1])
-                m = samples.mask
+                m = samples['mask']
                 interpolation = nn.Upsample(
                     scale_factor=(src.shape[1] / m.shape[1], src.shape[2] / m.shape[2]), mode="nearest"
                 )
                 mask = interpolation(m[..., None].astype(mx.float32)).astype(mx.bool_).squeeze(-1)
-                pos_l = self.backbone.layers[1](NestedTensor(src, mask)).astype(src.dtype)
+                array_dict_additional = {'feature_map': src, 'mask': mask}
+                pos_l = self.backbone.layers[1](array_dict_additional).astype(src.dtype)
                 srcs.append(src)
                 masks.append(mask)
                 poss.append(pos_l)
@@ -330,7 +332,7 @@ class DINO(nn.Module):
     def _set_aux_loss(self, outputs_class, outputs_coord):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
-        # as a dict having both a Tensor and a list.
+        # as a dict having both an array and a list.
         return [{'pred_logits': a, 'pred_boxes': b}
                 for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
 
@@ -360,7 +362,7 @@ class SetCriterion:
 
     def loss_labels(self, outputs, targets, indices, num_boxes, log=True):
         """Classification loss (Binary focal loss)
-        targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
+        targets dicts must contain the key "labels" containing an array of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
@@ -401,7 +403,7 @@ class SetCriterion:
 
     def loss_boxes(self, outputs, targets, indices, num_boxes):
         """Compute the losses related to the bounding boxes, the L1 regression loss and the GIoU loss
-           targets dicts must contain the key "boxes" containing a tensor of dim [nb_target_boxes, 4]
+           targets dicts must contain the key "boxes" containing an array of dim [nb_target_boxes, 4]
            The target boxes are expected in format (center_x, center_y, w, h), normalized by the image size.
         """
         assert 'pred_boxes' in outputs
@@ -454,7 +456,7 @@ class SetCriterion:
     def forward(self, outputs, targets, return_indices=False):
         """ This performs the loss computation.
         Parameters:
-             outputs: dict of tensors, see the output specification of the model for the format
+             outputs: dict of arrays, see the output specification of the model for the format
              targets: list of dicts, such that len(targets) == batch_size.
                       The expected keys in each dict depends on the losses applied, see each loss' doc
             
@@ -614,7 +616,7 @@ class PostProcess:
         """ Perform the computation
         Parameters:
             outputs: raw outputs of the model
-            target_sizes: tensor of dimension [batch_size x 2] containing the size of each images of the batch
+            target_sizes: array of dimension [batch_size x 2] containing the size of each images of the batch
                           For evaluation, this must be the original image size (before any data augmentation)
                           For visualization, this should be the image size after data augment, but before padding
         """

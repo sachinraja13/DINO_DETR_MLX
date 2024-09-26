@@ -152,7 +152,7 @@ class MetricLogger(object):
 def collate_fn(batch):
 
     batch = list(zip(*batch))
-    batch[0] = nested_tensor_from_tensor_list(batch[0])
+    batch[0] = nested_array_dict_array_list(batch[0])
     return tuple(batch)
 
 
@@ -170,83 +170,27 @@ def _max_by_axis(the_list):
     return maxes_div_n
 
 
-class NestedTensor(object):
-    def __init__(self, tensors, mask='auto'):
-        self.tensors = tensors
-        self.mask = mask
-        if mask == 'auto':
-            self.mask = mx.zeros_like(tensors)
-            if self.mask.dim() == 3:
-                self.mask = self.mask.sum(0).astype(mx.bool_)
-            elif self.mask.dim() == 4:
-                self.mask = self.mask.sum(1).astype(mx.bool_)
-            else:
-                raise ValueError("tensors dim must be 3 or 4 but {}({})".format(self.tensors.dim(), self.tensors.shape))
-
-    def imgsize(self):
-        res = []
-        for i in range(self.tensors.shape[0]):
-            mask = self.mask[i]
-            maxH = (~mask).sum(0).max()
-            maxW = (~mask).sum(1).max()
-            res.append(mx.array([maxH, maxW]))
-        return res
-
-    def to_img_list_single(self, tensor, mask):
-        assert tensor.dim() == 3, "dim of tensor should be 3 but {}".format(tensor.dim())
-        maxH = (~mask).sum(0).max()
-        maxW = (~mask).sum(1).max()
-        img = tensor[:, :maxH, :maxW]
-        return img
-
-    def to_img_list(self):
-        """remove the padding and convert to img list
-
-        Returns:
-            [type]: [description]
-        """
-        if self.tensors.dim() == 3:
-            return self.to_img_list_single(self.tensors, self.mask)
-        else:
-            res = []
-            for i in range(self.tensors.shape[0]):
-                tensor_i = self.tensors[i]
-                mask_i = self.mask[i]
-                res.append(self.to_img_list_single(tensor_i, mask_i))
-            return res
-
-    def decompose(self):
-        return self.tensors, self.mask
-
-    def __repr__(self):
-        return str(self.tensors)
-
-    @property
-    def shape(self):
-        return {
-            'tensors.shape': self.tensors.shape,
-            'mask.shape': self.mask.shape
-        }
-
-
-def nested_tensor_from_tensor_list(tensor_list: List[mx.array]):
+def nested_array_dict_array_list(array_list: List[mx.array]):
     # TODO make this more general
-    if tensor_list[0].ndim == 3:
+    if array_list[0].ndim == 3:
         # TODO make it support different-sized images
-        max_size = _max_by_axis([list(img.shape) for img in tensor_list])
+        max_size = _max_by_axis([list(img.shape) for img in array_list])
         # min_size = tuple(min(s) for s in zip(*[img.shape for img in tensor_list]))
-        batch_shape = [len(tensor_list)] + max_size
+        batch_shape = [len(array_list)] + max_size
         b, h, w, c = batch_shape
-        dtype = tensor_list[0].dtype
-        tensor = mx.zeros(batch_shape, dtype=dtype)
+        dtype = array_list[0].dtype
+        feature_map = mx.zeros(batch_shape, dtype=dtype)
         mask = mx.ones((b, h, w), dtype=mx.bool_)
         for i in range(b):
-            img = tensor_list[i]
-            tensor[i, : img.shape[0], : img.shape[1], : img.shape[2]] = img
+            img = array_list[i]
+            feature_map[i, : img.shape[0], : img.shape[1], : img.shape[2]] = img
             mask[i, : img.shape[0], : img.shape[1]] = False
     else:
         raise ValueError('not supported')
-    return NestedTensor(tensor, mask)
+    return {
+        'feature_map': feature_map,
+        'mask': mask
+    }
 
 
 def interpolate(input, scale_factor=None, mode="nearest", align_corners=False):
