@@ -7,7 +7,7 @@ import math
 import os
 import sys
 from typing import Iterable
-
+from functools import partial
 from util.utils import slprint
 import mlx.core as mx
 import mlx.nn as nn
@@ -16,17 +16,6 @@ import util.misc as utils
 from datasets.coco_eval import CocoEvaluator
 
 
-def loss_fn(model, array_dict, targets, criterion, need_tgt_for_training=False, return_outputs=False):
-    if need_tgt_for_training:
-        outputs = model(array_dict, targets)
-    else:
-        outputs = model(array_dict)
-    loss_dict = criterion.forward(outputs, targets)
-    weight_dict = criterion.weight_dict
-    loss = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
-    if return_outputs:
-        return loss, loss_dict, outputs
-    return loss, loss_dict
 
 
 def train_one_epoch(model: nn.Module, criterion,
@@ -49,12 +38,10 @@ def train_one_epoch(model: nn.Module, criterion,
             return loss, loss_dict, outputs
         return loss, loss_dict
     
+    @partial(mx.compile, inputs=state, outputs=state)
     def step(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
         train_step_fn = nn.value_and_grad(model, loss_fn)
         (loss_value, loss_dict), grads = train_step_fn(samples, targets, need_tgt_for_training, return_outputs=False)
-        if not math.isfinite(loss_value):
-            print("Loss is {}, stopping training".format(loss_value))
-            sys.exit(1)
         grads, total_norm = optim.clip_grad_norm(grads, max_norm=max_norm)
         optimizer.update(model, grads)
         return loss_value, loss_dict
@@ -74,6 +61,9 @@ def train_one_epoch(model: nn.Module, criterion,
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header, logger=logger):
         loss_value, loss_dict = step(samples, targets, need_tgt_for_training, return_outputs=False)
         mx.eval(state)
+        if not math.isfinite(loss_value):
+            print("Loss is {}, stopping training".format(loss_value))
+            sys.exit(1)
         metric_logger.update(loss=loss_value, **loss_dict)
         if 'class_error' in loss_dict:
             metric_logger.update(class_error=loss_dict['class_error'])

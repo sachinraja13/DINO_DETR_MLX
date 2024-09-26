@@ -1,5 +1,7 @@
 _base_ = ['coco_transformer.py']
 
+compile_computation_graph = False
+device = 'gpu' # 'gpu' or 'cpu'
 precision = 'full'
 
 load_pytorch_weights = True
@@ -13,13 +15,13 @@ num_classes_synthetic_dataset = 91
 min_targets_per_image = 50
 max_targets_per_image = 200
 
-pad_all_images_to_same_size = True
+pad_all_images_to_same_size = False
 image_array_fixed_size = [1024, 1024, 3]
 pad_labels_to_n_max_ground_truths = False
 n_max_ground_truths = 500
 
-use_custom_dataloader = True
-reinstantiate_dataloader_every_epoch = True
+use_custom_dataloader = False
+reinstantiate_dataloader_every_epoch = False
 
 lr = 0.0001
 param_dict_type = 'default'
@@ -101,7 +103,7 @@ no_interm_box_loss = False
 focal_alpha = 0.25
 
 decoder_sa_type = 'sa' # ['sa', 'ca_label', 'ca_content']
-matcher_type = 'HungarianMatcher' # or SimpleMinsumMatcher
+matcher_type = 'HungarianMatcher' # or SimpleMinsumMatcher or HungarianMatcher
 decoder_module_seq = ['sa', 'ca', 'ffn']
 nms_iou_threshold = -1
 
