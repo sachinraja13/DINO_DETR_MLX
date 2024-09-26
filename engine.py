@@ -7,7 +7,7 @@ import math
 import os
 import sys
 from typing import Iterable
-
+from functools import partial
 from util.utils import slprint
 import mlx.core as mx
 import mlx.nn as nn
@@ -16,17 +16,6 @@ import util.misc as utils
 from datasets.coco_eval import CocoEvaluator
 
 
-def loss_fn(model, array_dict, targets, criterion, need_tgt_for_training=False, return_outputs=False):
-    if need_tgt_for_training:
-        outputs = model(array_dict, targets)
-    else:
-        outputs = model(array_dict)
-    loss_dict = criterion.forward(outputs, targets)
-    weight_dict = criterion.weight_dict
-    loss = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
-    if return_outputs:
-        return loss, loss_dict, outputs
-    return loss, loss_dict
 
 
 def train_one_epoch(model: nn.Module, criterion,
@@ -49,6 +38,7 @@ def train_one_epoch(model: nn.Module, criterion,
             return loss, loss_dict, outputs
         return loss, loss_dict
     
+    @partial(mx.compile, inputs=state, outputs=state)
     def step(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
         train_step_fn = nn.value_and_grad(model, loss_fn)
         (loss_value, loss_dict), grads = train_step_fn(samples, targets, need_tgt_for_training, return_outputs=False)

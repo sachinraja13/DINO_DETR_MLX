@@ -1,5 +1,7 @@
 _base_ = ['coco_transformer.py']
 
+compile_computation_graph = False
+device = 'gpu' # 'gpu' or 'cpu'
 precision = 'full'
 
 load_pytorch_weights = True

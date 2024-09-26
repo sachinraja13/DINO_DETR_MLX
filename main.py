@@ -44,8 +44,6 @@ def get_args_parser():
                         help='path where to save, empty for no saving')
     parser.add_argument('--note', default='',
                         help='add some notes to the experiment')
-    parser.add_argument('--device', default='metal',
-                        help='device to use for training / testing')
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--pretrain_model_path', help='load from other checkpoint')
@@ -111,7 +109,6 @@ def main(args):
     logger.info("Full config saved to {}".format(save_json_path))
     logger.info("args: " + str(args) + '\n')
                 
-    mx.set_default_device(mx.gpu)
     # fix the seed for reproducibility
     seed = args.seed 
     np.random.seed(seed)
@@ -119,6 +116,12 @@ def main(args):
 
     # build model
     model, criterion, postprocessors = build_model_main(args)
+    if not args.compile_computation_graph:
+        mx.disable_compile()
+    if args.device == 'cpu':
+        mx.set_default_device(mx.cpu)
+    else:
+        mx.set_default_device(mx.gpu)
     if args.load_pytorch_weights:
         model = utils.load_mlx_model_with_pytorch_weights(model, args.pytorch_weights_path, logger)
     if args.precision == 'half':
