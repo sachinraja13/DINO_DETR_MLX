@@ -42,9 +42,6 @@ def train_one_epoch(model: nn.Module, criterion,
     def step(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
         train_step_fn = nn.value_and_grad(model, loss_fn)
         (loss_value, loss_dict), grads = train_step_fn(samples, targets, need_tgt_for_training, return_outputs=False)
-        if not math.isfinite(loss_value):
-            print("Loss is {}, stopping training".format(loss_value))
-            sys.exit(1)
         grads, total_norm = optim.clip_grad_norm(grads, max_norm=max_norm)
         optimizer.update(model, grads)
         return loss_value, loss_dict
@@ -64,6 +61,9 @@ def train_one_epoch(model: nn.Module, criterion,
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header, logger=logger):
         loss_value, loss_dict = step(samples, targets, need_tgt_for_training, return_outputs=False)
         mx.eval(state)
+        if not math.isfinite(loss_value):
+            print("Loss is {}, stopping training".format(loss_value))
+            sys.exit(1)
         metric_logger.update(loss=loss_value, **loss_dict)
         if 'class_error' in loss_dict:
             metric_logger.update(class_error=loss_dict['class_error'])
