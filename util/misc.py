@@ -170,14 +170,14 @@ def _max_by_axis(the_list):
     maxes_div_n.append(maxes[-1])
     return maxes_div_n
 
-def nested_array_dict_array_list(array_list: List[mx.array]):
+def nested_array_dict_array_list(array_list: List[mx.array], pad_imgs=pad_all_images_to_same_size, img_fixed_size=image_array_fixed_size):
     # TODO make this more general
     if array_list[0].ndim == 3:
         # TODO make it support different-sized images
-        if not pad_all_images_to_same_size or image_array_fixed_size is None or len(image_array_fixed_size) != 3:
+        if not pad_imgs or img_fixed_size is None or len(img_fixed_size) != 3:
             max_size = _max_by_axis([list(img.shape) for img in array_list])
         else:
-            max_size = image_array_fixed_size
+            max_size = img_fixed_size
         # min_size = tuple(min(s) for s in zip(*[img.shape for img in tensor_list]))
         batch_shape = [len(array_list)] + max_size
         b, h, w, c = batch_shape

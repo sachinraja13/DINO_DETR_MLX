@@ -358,13 +358,17 @@ class CocoDetection(torchvision.datasets.CocoDetection):
         transforms, 
         return_masks, 
         aux_target_hacks=None, 
-        precision='full'
+        precision='full',
+        pad_labels_to_n_max_ground_truth=False,
+        n_max_ground_truth=800
     ):
         super(CocoDetection, self).__init__(img_folder, ann_file)
         self._transforms = transforms
-        self.prepare = ConvertCocoPolysToMask(return_masks)
+        self.prepare = ConvertCocoPolysToMask(return_mask, pad_labels_to_n_max_ground_truth, n_max_ground_truth)
         self.aux_target_hacks = aux_target_hacks
         self.precision = precision
+        self.pad_labels_to_n_max_ground_truth = pad_labels_to_n_max_ground_truth
+        self.n_max_ground_truth = n_max_ground_truth
 
     def change_hack_attr(self, hackclassname, attrkv_dict):
         target_class = dataset_hook_register[hackclassname]
@@ -441,8 +445,15 @@ def convert_coco_poly_to_mask(segmentations, height, width):
 
 
 class ConvertCocoPolysToMask(object):
-    def __init__(self, return_masks=False):
+    def __init__(
+        self, 
+        return_masks=False, 
+        pad_labels_to_n_max_ground_truth=False,
+        n_max_ground_truth=800
+    ):
         self.return_masks = return_masks
+        self.pad_labels_to_n_max_ground_truth = pad_labels_to_n_max_ground_truth
+        self.n_max_ground_truth = n_max_ground_truth
 
     def __call__(self, image, target):
         w, h = image.size
@@ -456,14 +467,11 @@ class ConvertCocoPolysToMask(object):
 
         boxes = [obj["bbox"] for obj in anno]
         # guard against no boxes via resizing
-        boxes = torch.as_tensor(boxes, dtype=torch.float32).reshape(-1, 4)
+        boxes = np.asarray(boxes, dtype=np.float32).reshape(-1, 4)
         boxes[:, 2:] += boxes[:, :2]
-        boxes[:, 0::2].clamp_(min=0, max=w)
-        boxes[:, 1::2].clamp_(min=0, max=h)
-
-        classes = [obj["category_id"] for obj in anno]
-        classes = torch.tensor(classes, dtype=torch.int64)
-
+        boxes[:, 0::2].clip(0, w)
+        boxes[:, 1::2].clip(0, h)
+        classes = np.asarray([obj["category_id"] for obj in anno])
         if self.return_masks:
             segmentations = [obj["segmentation"] for obj in anno]
             masks = convert_coco_poly_to_mask(segmentations, h, w)
@@ -479,12 +487,25 @@ class ConvertCocoPolysToMask(object):
         keep = (boxes[:, 3] > boxes[:, 1]) & (boxes[:, 2] > boxes[:, 0])
         boxes = boxes[keep]
         classes = classes[keep]
+        num_objects = boxes.shape[0]
+        pad_size = self.n_max_ground_truth - num_objects
+        classes = np.asarray(classes)
+        # if self.pad_labels_to_n_max_ground_truth:
+        #     if pad_size >= 0:
+        #         classes = np.pad(classes, ((0, pad_size)))
+        #         boxes = np.pad(boxes, ((0, pad_size), (0, 0)))
+        #     else:
+        #         classes = classes[0 : self.n_max_ground_truth]
+        #         boxes = boxes[0 : self.n_max_ground_truth]
+        classes = torch.tensor(classes, dtype=torch.int64)
+        boxes = torch.as_tensor(boxes, dtype=torch.float32).reshape(-1, 4)
         if self.return_masks:
             masks = masks[keep]
         if keypoints is not None:
             keypoints = keypoints[keep]
 
         target = {}
+        target["num_objects"] = num_objects
         target["boxes"] = boxes
         target["labels"] = classes
         if self.return_masks:
@@ -690,7 +711,9 @@ def build(image_set, args):
     dataset = CocoDetection(img_folder, ann_file, 
             transforms=make_coco_transforms(image_set, fix_size=args.fix_size, strong_aug=strong_aug, args=args), 
             return_masks=args.masks,
-            aux_target_hacks=aux_target_hacks_list, precision=args.precision
+            aux_target_hacks=aux_target_hacks_list, precision=args.precision,
+            pad_labels_to_n_max_ground_truth=args.pad_labels_to_n_max_ground_truth,
+            n_max_ground_truth=args.n_max_ground_truth
         )
 
     return dataset
