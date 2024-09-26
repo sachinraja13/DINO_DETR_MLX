@@ -351,7 +351,15 @@ dataset_hook_register = {
 
 
 class CocoDetection(torchvision.datasets.CocoDetection):
-    def __init__(self, img_folder, ann_file, transforms, return_masks, aux_target_hacks=None, precision='full'):
+    def __init__(
+        self, 
+        img_folder, 
+        ann_file, 
+        transforms, 
+        return_masks, 
+        aux_target_hacks=None, 
+        precision='full'
+    ):
         super(CocoDetection, self).__init__(img_folder, ann_file)
         self._transforms = transforms
         self.prepare = ConvertCocoPolysToMask(return_masks)
@@ -505,7 +513,7 @@ def make_coco_transforms(image_set, fix_size=False, strong_aug=False, args=None)
     ])
 
     # config the params for data aug
-    scales = [480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800]
+    scales = [480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800, 1024]
     max_size = 1333
     scales2_resize = [400, 500, 600]
     scales2_crop = [384, 600]

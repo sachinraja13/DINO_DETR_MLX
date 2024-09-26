@@ -38,7 +38,6 @@ def get_args_parser():
     # parser.add_argument('--dataset_file', default='coco')
     parser.add_argument('--coco_path', type=str, default='/comp_robot/cv_public_dataset/COCO2017/')
     parser.add_argument('--remove_difficult', action='store_true')
-    parser.add_argument('--fix_size', action='store_true')
 
     # training parameters
     parser.add_argument('--output_dir', default='',
@@ -97,7 +96,11 @@ def main(args):
         args.use_ema = False
     if not getattr(args, 'debug', None):
         args.debug = False
-
+    if not getattr(args, 'pad_all_images_to_same_size', False):
+        args.pad_all_images_to_same_size = False
+    if not getattr(args, 'image_array_fixed_size', [1024, 1024, 3]):
+        args.image_array_fixed_size = [1024, 1024, 3]
+    
     # setup logger
     os.makedirs(args.output_dir, exist_ok=True)
     logger = setup_logger(output=os.path.join(args.output_dir, 'info.txt'), distributed_rank=0, color=False, name="dino_detr")
@@ -132,7 +135,8 @@ def main(args):
     lr_schedule = optim.step_decay(args.lr, args.lr_drop_factor, args.lr_drop_steps)
     optimizer = optim.AdamW(learning_rate=lr_schedule, weight_decay=args.weight_decay)
 
-    
+    utils.pad_all_images_to_same_size = args.pad_all_images_to_same_size
+    utils.image_array_fixed_size = args.image_array_fixed_size
     dataset_train = build_dataset(image_set='train', args=args)
     dataset_val = build_dataset(image_set='val', args=args)
     

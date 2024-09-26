@@ -6,6 +6,7 @@ load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 
 dataset_file = 'synthetic'
+coco_year = '2017'
 num_classes=91
 num_samples_synthetic_dataset = 1000
 num_classes_synthetic_dataset = 91

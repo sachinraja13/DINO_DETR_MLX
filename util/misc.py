@@ -19,6 +19,8 @@ import mlx.core as mx
 import mlx.nn as nn
 import colorsys
 from .pytorch_weights_to_mlx import load_mlx_model_with_pytorch_weights
+pad_all_images_to_same_size = False
+image_array_fixed_size = [1024, 1024, 3]
 
 
 class SmoothedValue(object):
@@ -148,7 +150,6 @@ class MetricLogger(object):
         print_func('{} Total time: {} ({:.4f} s / it)'.format(
             header, total_time_str, total_time / len(iterable)))
 
-
 def collate_fn(batch):
 
     batch = list(zip(*batch))
@@ -169,12 +170,14 @@ def _max_by_axis(the_list):
     maxes_div_n.append(maxes[-1])
     return maxes_div_n
 
-
 def nested_array_dict_array_list(array_list: List[mx.array]):
     # TODO make this more general
     if array_list[0].ndim == 3:
         # TODO make it support different-sized images
-        max_size = _max_by_axis([list(img.shape) for img in array_list])
+        if not pad_all_images_to_same_size or image_array_fixed_size is None or len(image_array_fixed_size) != 3:
+            max_size = _max_by_axis([list(img.shape) for img in array_list])
+        else:
+            max_size = image_array_fixed_size
         # min_size = tuple(min(s) for s in zip(*[img.shape for img in tensor_list]))
         batch_shape = [len(array_list)] + max_size
         b, h, w, c = batch_shape
