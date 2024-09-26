@@ -2,7 +2,7 @@ _base_ = ['coco_transformer.py']
 
 precision = 'full'
 
-load_pytorch_weights = False
+load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 
 dataset_file = 'synthetic'
@@ -104,7 +104,7 @@ dec_pred_bbox_embed_share = True
 dec_pred_class_embed_share = True
 
 # for dn
-use_dn = False
+use_dn = True
 dn_number = 100
 dn_box_noise_scale = 0.4
 dn_label_noise_ratio = 0.5
