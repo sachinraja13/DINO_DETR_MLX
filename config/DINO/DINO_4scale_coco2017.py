@@ -13,6 +13,10 @@ num_classes_synthetic_dataset = 91
 min_targets_per_image = 50
 max_targets_per_image = 200
 
+pad_all_images_to_same_size = True
+image_array_fixed_size = [1024, 1024, 3]
+fix_size = True
+
 use_custom_dataloader = False
 reinstantiate_dataloader_every_epoch = False
 
