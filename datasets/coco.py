@@ -359,16 +359,16 @@ class CocoDetection(torchvision.datasets.CocoDetection):
         return_masks, 
         aux_target_hacks=None, 
         precision='full',
-        pad_labels_to_n_max_ground_truth=False,
-        n_max_ground_truth=800
+        pad_labels_to_n_max_ground_truths=False,
+        n_max_ground_truths=800
     ):
         super(CocoDetection, self).__init__(img_folder, ann_file)
         self._transforms = transforms
-        self.prepare = ConvertCocoPolysToMask(return_mask, pad_labels_to_n_max_ground_truth, n_max_ground_truth)
+        self.prepare = ConvertCocoPolysToMask(return_mask, pad_labels_to_n_max_ground_truths, n_max_ground_truths)
         self.aux_target_hacks = aux_target_hacks
         self.precision = precision
-        self.pad_labels_to_n_max_ground_truth = pad_labels_to_n_max_ground_truth
-        self.n_max_ground_truth = n_max_ground_truth
+        self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
+        self.n_max_ground_truths = n_max_ground_truths
 
     def change_hack_attr(self, hackclassname, attrkv_dict):
         target_class = dataset_hook_register[hackclassname]
@@ -448,12 +448,12 @@ class ConvertCocoPolysToMask(object):
     def __init__(
         self, 
         return_masks=False, 
-        pad_labels_to_n_max_ground_truth=False,
-        n_max_ground_truth=800
+        pad_labels_to_n_max_ground_truths=False,
+        n_max_ground_truths=800
     ):
         self.return_masks = return_masks
-        self.pad_labels_to_n_max_ground_truth = pad_labels_to_n_max_ground_truth
-        self.n_max_ground_truth = n_max_ground_truth
+        self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
+        self.n_max_ground_truths = n_max_ground_truths
 
     def __call__(self, image, target):
         w, h = image.size
@@ -488,15 +488,15 @@ class ConvertCocoPolysToMask(object):
         boxes = boxes[keep]
         classes = classes[keep]
         num_objects = boxes.shape[0]
-        pad_size = self.n_max_ground_truth - num_objects
+        pad_size = self.n_max_ground_truths - num_objects
         classes = np.asarray(classes)
-        # if self.pad_labels_to_n_max_ground_truth:
-        #     if pad_size >= 0:
-        #         classes = np.pad(classes, ((0, pad_size)))
-        #         boxes = np.pad(boxes, ((0, pad_size), (0, 0)))
-        #     else:
-        #         classes = classes[0 : self.n_max_ground_truth]
-        #         boxes = boxes[0 : self.n_max_ground_truth]
+        if self.pad_labels_to_n_max_ground_truths:
+            if pad_size >= 0:
+                classes = np.pad(classes, ((0, pad_size)))
+                boxes = np.pad(boxes, ((0, pad_size), (0, 0)))
+            else:
+                classes = classes[0 : self.n_max_ground_truths]
+                boxes = boxes[0 : self.n_max_ground_truths]
         classes = torch.tensor(classes, dtype=torch.int64)
         boxes = torch.as_tensor(boxes, dtype=torch.float32).reshape(-1, 4)
         if self.return_masks:
@@ -505,7 +505,7 @@ class ConvertCocoPolysToMask(object):
             keypoints = keypoints[keep]
 
         target = {}
-        target["num_objects"] = num_objects
+        target["num_objects"] = min(num_objects, self.n_max_ground_truths)
         target["boxes"] = boxes
         target["labels"] = classes
         if self.return_masks:
@@ -712,8 +712,8 @@ def build(image_set, args):
             transforms=make_coco_transforms(image_set, fix_size=args.fix_size, strong_aug=strong_aug, args=args), 
             return_masks=args.masks,
             aux_target_hacks=aux_target_hacks_list, precision=args.precision,
-            pad_labels_to_n_max_ground_truth=args.pad_labels_to_n_max_ground_truth,
-            n_max_ground_truth=args.n_max_ground_truth
+            pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
+            n_max_ground_truths=args.n_max_ground_truths
         )
 
     return dataset

@@ -15,8 +15,8 @@ max_targets_per_image = 200
 
 pad_all_images_to_same_size = True
 image_array_fixed_size = [1024, 1024, 3]
-pad_labels_to_n_max_ground_truth = False
-n_max_ground_truth = 500
+pad_labels_to_n_max_ground_truths = False
+n_max_ground_truths = 500
 
 use_custom_dataloader = True
 reinstantiate_dataloader_every_epoch = True
