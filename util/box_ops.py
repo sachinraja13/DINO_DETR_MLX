@@ -24,12 +24,12 @@ def box_area(boxes):
     (x1, y1, x2, y2) coordinates.
 
     Args:
-        boxes (Tensor[N, 4]): boxes for which the area will be computed. They
+        boxes (Array[N, 4]): boxes for which the area will be computed. They
             are expected to be in (x1, y1, x2, y2) format with
             ``0 <= x1 < x2`` and ``0 <= y1 < y2``.
 
     Returns:
-        Tensor[N]: the area for each box
+        Array[N]: the area for each box
     """
     return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
 

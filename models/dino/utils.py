@@ -126,29 +126,29 @@ def _get_activation_fn(activation):
         raise RuntimeError(f"Unknown activation function: {activation}")
 
 
-def gen_sineembed_for_position(pos_tensor):
+def gen_sineembed_for_position(pos_array):
     scale = 2 * math.pi
     dim_t = mx.arange(128, dtype=mx.float32)
     dim_t = 10000 ** (2 * (dim_t // 2) / 128)
-    x_embed = pos_tensor[:, :, 0] * scale
-    y_embed = pos_tensor[:, :, 1] * scale
+    x_embed = pos_array[:, :, 0] * scale
+    y_embed = pos_array[:, :, 1] * scale
     pos_x = x_embed[:, :, None] / dim_t
     pos_y = y_embed[:, :, None] / dim_t
     pos_x = mx.stack((mx.sin(pos_x[:, :, 0::2]), mx.cos(pos_x[:, :, 1::2])), axis=3).flatten(2)
     pos_y = mx.stack((mx.sin(pos_y[:, :, 0::2]), mx.cos(pos_y[:, :, 1::2])), axis=3).flatten(2)
 
-    if pos_tensor.shape[-1] == 2:
+    if pos_array.shape[-1] == 2:
         pos = mx.concatenate((pos_y, pos_x), axis=2)
-    elif pos_tensor.shape[-1] == 4:
-        w_embed = pos_tensor[:, :, 2] * scale
-        h_embed = pos_tensor[:, :, 3] * scale
+    elif pos_array.shape[-1] == 4:
+        w_embed = pos_array[:, :, 2] * scale
+        h_embed = pos_array[:, :, 3] * scale
         w_embed = w_embed[:, :, None] / dim_t
         h_embed = h_embed[:, :, None] / dim_t
         pos_w = mx.stack((mx.sin(w_embed[:, :, 0::2]), mx.cos(w_embed[:, :, 1::2])), axis=3).flatten(2)
         pos_h = mx.stack((mx.sin(h_embed[:, :, 0::2]), mx.cos(h_embed[:, :, 1::2])), axis=3).flatten(2)
         pos = mx.concatenate((pos_y, pos_x, pos_w, pos_h), axis=2)
     else:
-        raise ValueError(f"Unknown pos_tensor shape: {pos_tensor.shape[-1]}")
+        raise ValueError(f"Unknown pos_tensor shape: {pos_array.shape[-1]}")
     
     return pos
 

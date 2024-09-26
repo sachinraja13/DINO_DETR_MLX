@@ -4,9 +4,6 @@ import mlx.core as mx
 from . import resnet
 from .positional_embedding import build_position_encoding
 from .utils import FrozenBatchNorm2d
-from util.misc import (NestedTensor,
-    nested_tensor_from_tensor_list,
-)
 
 
 class BackboneBase(nn.Module):
@@ -27,13 +24,13 @@ class BackboneBase(nn.Module):
         if not train_backbone:
             self.body.freeze()
 
-    def __call__(self, tensor_list: NestedTensor):
-        xs = self.body.features(tensor_list.tensors)
-        out: Dict[str, NestedTensor] = {}
+    def __call__(self, array_dict: Dict[str, mx.array]):
+        xs = self.body.features(array_dict['feature_map'])
+        out: Dict[str, Dict[str, mx.array]] = {}
         for name, x in xs.items():
             if name not in self.return_layers_map:
                 continue
-            m = tensor_list.mask
+            m = array_dict['mask']
             assert m is not None
             interpolation = nn.Upsample(
                 scale_factor=(x.shape[1] / m.shape[1], x.shape[2] / m.shape[2]), mode="nearest"
@@ -43,7 +40,10 @@ class BackboneBase(nn.Module):
                 .astype(mx.bool_)
                 .squeeze(-1)
             )
-            out[name] = NestedTensor(x, m)
+            out[name] = {
+                'feature_map' : x,
+                'mask': m
+            }
         return out
 
 
@@ -88,9 +88,9 @@ class Joiner(nn.Sequential):
         self.num_channels = backbone.num_channels
 
 
-    def __call__(self, tensor_list: NestedTensor):
-        xs = self.layers[0](tensor_list)
-        out: List[NestedTensor] = []
+    def __call__(self, array_dict: Dict[str, mx.array]):
+        xs = self.layers[0](array_dict)
+        out: List[Dict[str, mx.array]] = []
         pos = []
         for name, x in xs.items():
             out.append(x)
