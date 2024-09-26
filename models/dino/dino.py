@@ -26,7 +26,7 @@ from ..backbone import build_backbone
 from .matcher import build_matcher, HungarianMatcher
 from .deformable_transformer import DeformableTransformer, build_deformable_transformer
 from .utils import sigmoid_focal_loss, MLP
-from .dn_components import prepare_for_cdn, dn_post_process
+from .dn_module import DNEncoder, dn_post_process
 import numpy as np
 from ..registry import MODULE_BUILD_FUNCS
 
@@ -76,7 +76,7 @@ class DINO(nn.Module):
         self.num_feature_levels = num_feature_levels
         self.nheads = nheads
         self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
-
+        self.dn_encoder = DNEncoder(num_queries, num_classes, hidden_dim, self.label_enc)
         # setting query dim
         self.query_dim = query_dim
         assert query_dim == 4
@@ -269,9 +269,8 @@ class DINO(nn.Module):
         if self.dn_number > 0 or targets is not None:
             num_q = self.num_queries * self.num_patterns if self.num_patterns > 0 else self.num_queries
             input_query_label, input_query_bbox, attn_mask, dn_meta =\
-                prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
-                                training=self.training,num_queries=num_q,num_classes=self.num_classes,
-                                hidden_dim=self.hidden_dim,label_enc=self.label_enc)
+                self.dn_encoder(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
+                                training=self.training)
         else:
             assert targets is None
             input_query_bbox = input_query_label = attn_mask = dn_meta = None
