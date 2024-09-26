@@ -605,7 +605,7 @@ class SetCriterion:
         return output_known_lbs_bboxes,single_pad,num_dn_groups
 
 
-class PostProcess:
+class PostProcessor:
     """ This module converts the model's output into the format expected by the coco api"""
     def __init__(self, num_select=100, nms_iou_threshold=-1) -> None:
         super().__init__()
@@ -771,7 +771,7 @@ def build_dino(args):
     criterion = SetCriterion(num_classes, matcher=matcher, weight_dict=weight_dict,
                              focal_alpha=args.focal_alpha, losses=losses,
                              )
-    postprocessors = {'bbox': PostProcess(num_select=args.num_select, nms_iou_threshold=args.nms_iou_threshold)}
+    postprocessors = {'bbox': PostProcessor(num_select=args.num_select, nms_iou_threshold=args.nms_iou_threshold)}
 
     return model, criterion, postprocessors
 
