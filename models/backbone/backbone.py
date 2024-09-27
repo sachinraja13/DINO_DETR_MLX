@@ -14,13 +14,14 @@ class BackboneBase(nn.Module):
         return_interm_layers: List[int],
         num_channels:  List[int],
         strides: List[int],
-        max_layers = 4
+        max_layers=4
     ):
         super().__init__()
         self.body = backbone
         self.num_channels = num_channels
         self.strides = strides
-        self.return_layers_map= {f"layer{i + max_layers - len(return_interm_layers)}" : i for i in return_interm_layers}
+        self.return_layers_map = {
+            f"layer{i + max_layers - len(return_interm_layers)}": i for i in return_interm_layers}
         if not train_backbone:
             self.body.freeze()
 
@@ -41,7 +42,7 @@ class BackboneBase(nn.Module):
                 .squeeze(-1)
             )
             out[name] = {
-                'feature_map' : x,
+                'feature_map': x,
                 'mask': m
             }
         return out
@@ -66,19 +67,20 @@ class Backbone(BackboneBase):
                 pretrained=False,
                 norm_layer=batch_norm,
             )
-            assert name not in ('resnet18', 'resnet34'), "Only resnet50 and resnet101 are available."
-            assert return_interm_layers in [[0,1,2,3], [1,2,3], [3]]
+            assert name not in (
+                'resnet18', 'resnet34'), "Only resnet50 and resnet101 are available."
+            assert return_interm_layers in [[0, 1, 2, 3], [1, 2, 3], [3]]
             num_channels_all = [256, 512, 1024, 2048]
             all_strides = [4, 8, 16, 32]
             self.num_channels = num_channels_all[4-len(return_interm_layers):]
             self.strides = all_strides[4-len(return_interm_layers):]
             super().__init__(
-                    backbone=backbone, 
-                    train_backbone=train_backbone, 
-                    return_interm_layers=return_interm_layers,
-                    num_channels=self.num_channels,
-                    strides=self.strides
-                )
+                backbone=backbone,
+                train_backbone=train_backbone,
+                return_interm_layers=return_interm_layers,
+                num_channels=self.num_channels,
+                strides=self.strides
+            )
 
 
 class Joiner(nn.Sequential):
@@ -86,7 +88,6 @@ class Joiner(nn.Sequential):
         super().__init__(backbone, position_embedding)
         self.strides = backbone.strides
         self.num_channels = backbone.num_channels
-
 
     def __call__(self, array_dict: Dict[str, mx.array]):
         xs = self.layers[0](array_dict)
@@ -122,12 +123,12 @@ def build_backbone(args):
 
     if args.backbone in ['resnet50', 'resnet101']:
         backbone = Backbone(
-                        name=args.backbone, 
-                        train_backbone=train_backbone, 
-                        dilation=args.dilation,   
-                        return_interm_layers=return_interm_indices,   
-                        batch_norm=FrozenBatchNorm2d
-                    )
+            name=args.backbone,
+            train_backbone=train_backbone,
+            dilation=args.dilation,
+            return_interm_layers=return_interm_indices,
+            batch_norm=FrozenBatchNorm2d
+        )
         bb_num_channels = backbone.num_channels
     # elif args.backbone in ['swin_T_224_1k', 'swin_B_224_22k', 'swin_B_384_22k', 'swin_L_224_22k', 'swin_L_384_22k']:
     #     pretrain_img_size = int(args.backbone.split('_')[-2])
@@ -168,12 +169,12 @@ def build_backbone(args):
     #     bb_num_channels = backbone.dims[4 - len(return_interm_indices):]
     else:
         raise NotImplementedError("Unknown backbone {}".format(args.backbone))
-    
 
-    assert len(bb_num_channels) == len(return_interm_indices), f"len(bb_num_channels) {len(bb_num_channels)} != len(return_interm_indices) {len(return_interm_indices)}"
-
+    assert len(bb_num_channels) == len(
+        return_interm_indices), f"len(bb_num_channels) {len(bb_num_channels)} != len(return_interm_indices) {len(return_interm_indices)}"
 
     model = Joiner(backbone, position_embedding)
-    model.num_channels = bb_num_channels 
-    assert isinstance(bb_num_channels, List), "bb_num_channels is expected to be a List but {}".format(type(bb_num_channels))
+    model.num_channels = bb_num_channels
+    assert isinstance(bb_num_channels, List), "bb_num_channels is expected to be a List but {}".format(
+        type(bb_num_channels))
     return model

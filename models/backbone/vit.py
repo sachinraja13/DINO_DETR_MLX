@@ -37,7 +37,8 @@ class EncoderBlock(nn.Module):
 
         # Attention block
         self.ln_1 = norm_layer(hidden_dim)
-        self.self_attention = nn.MultiHeadAttention(hidden_dim, num_heads, bias=True)
+        self.self_attention = nn.MultiHeadAttention(
+            hidden_dim, num_heads, bias=True)
         self.dropout = nn.Dropout(dropout)
 
         # MLP block
@@ -200,16 +201,22 @@ class VisionTransformer(nn.Module):
             if "in_proj_weight" in k:
                 output = []
                 query, key, value = mx.split(v, 3, axis=0)
-                output.append((k.replace("in_proj_weight", "query_proj.weight"), query))
-                output.append((k.replace("in_proj_weight", "key_proj.weight"), key))
-                output.append((k.replace("in_proj_weight", "value_proj.weight"), value))
+                output.append(
+                    (k.replace("in_proj_weight", "query_proj.weight"), query))
+                output.append(
+                    (k.replace("in_proj_weight", "key_proj.weight"), key))
+                output.append(
+                    (k.replace("in_proj_weight", "value_proj.weight"), value))
                 return output
             if "in_proj_bias" in k:
                 output = []
                 query, key, value = mx.split(v, 3, axis=0)
-                output.append((k.replace("in_proj_bias", "query_proj.bias"), query))
-                output.append((k.replace("in_proj_bias", "key_proj.bias"), key))
-                output.append((k.replace("in_proj_bias", "value_proj.bias"), value))
+                output.append(
+                    (k.replace("in_proj_bias", "query_proj.bias"), query))
+                output.append(
+                    (k.replace("in_proj_bias", "key_proj.bias"), key))
+                output.append(
+                    (k.replace("in_proj_bias", "value_proj.bias"), value))
                 return output
             if "linear_1" in k:
                 k = k.replace("linear_1", "0")
@@ -315,5 +322,6 @@ def vit_h_14(pretrained: bool = True, **kwargs) -> VisionTransformer:
         **kwargs,
     )
     if pretrained:
-        raise NotImplementedError("Pretrained weights not available for this model!")
+        raise NotImplementedError(
+            "Pretrained weights not available for this model!")
     return model

@@ -12,15 +12,17 @@ from __future__ import division
 
 import warnings
 import math
-import mlx.core as mx 
+import mlx.core as mx
 import numpy as np
 import timeit
 import random
 import mlx.nn as nn
 
+
 def _is_power_of_2(n):
     if (not isinstance(n, int)) or (n < 0):
-        raise ValueError("invalid input for _is_power_of_2: {} (type: {})".format(n, type(n)))
+        raise ValueError(
+            "invalid input for _is_power_of_2: {} (type: {})".format(n, type(n)))
     return (n & (n-1) == 0) and n != 0
 
 
@@ -100,6 +102,7 @@ def grid_sample(x, grid):
         threadgroup=(256, 1, 1),
     )
     return outputs[0]
+
 
 @grid_sample.vjp
 def grid_sample_vjp(primals, cotangent, _):
@@ -225,8 +228,6 @@ def grid_sample_vjp(primals, cotangent, _):
     return outputs[0], outputs[1]
 
 
-
-
 def ms_deform_attn_core(value, value_spatial_shapes, sampling_locations, attention_weights):
     # for debug and test only,
     # need to use cuda version instead
@@ -247,16 +248,22 @@ def ms_deform_attn_core(value, value_spatial_shapes, sampling_locations, attenti
     sampling_value_list = []
     for lid_, (H_, W_) in enumerate(value_spatial_shapes):
         # N_, H_*W_, M_, D_ -> N_, H_*W_, M_*D_ -> N_, M_*D_, H_, W_ -> N_*M_, D_, H_, W_
-        value_l_ = mx.reshape(mx.transpose(mx.reshape(value_list[lid_], (N_, H_ * W_, M_, D_)), (0, 2, 1, 3)), (N_ * M_, H_, W_, D_))
+        value_l_ = mx.reshape(mx.transpose(mx.reshape(
+            value_list[lid_], (N_, H_ * W_, M_, D_)), (0, 2, 1, 3)), (N_ * M_, H_, W_, D_))
         # N_, Lq_, M_, P_, 2 -> N_, M_, Lq_, P_, 2 -> N_*M_, Lq_, P_, 2
-        sampling_grid_l_ = mx.reshape(mx.transpose(sampling_grids[:, :, :, lid_, :], (0, 2, 1, 3, 4)), (N_ * M_, Lq_, P_, 2))
+        sampling_grid_l_ = mx.reshape(mx.transpose(
+            sampling_grids[:, :, :, lid_, :], (0, 2, 1, 3, 4)), (N_ * M_, Lq_, P_, 2))
         sampling_value_l_ = grid_sample(value_l_, sampling_grid_l_)
-        sampling_value_list.append(mx.transpose(sampling_value_l_, (0, 3, 1, 2)))
+        sampling_value_list.append(
+            mx.transpose(sampling_value_l_, (0, 3, 1, 2)))
     # (N_, Lq_, M_, L_, P_) -> (N_, M_, Lq_, L_, P_) -> (N_, M_, 1, Lq_, L_*P_)
-    attention_weights = mx.reshape(mx.transpose(attention_weights, (0, 2, 1, 3, 4)), (N_ * M_, 1, Lq_, L_ * P_))
+    attention_weights = mx.reshape(mx.transpose(
+        attention_weights, (0, 2, 1, 3, 4)), (N_ * M_, 1, Lq_, L_ * P_))
     sampling_value_list = mx.stack(sampling_value_list, axis=-2).flatten(-2)
-    output = (sampling_value_list * attention_weights).sum(-1).reshape((N_, M_ * D_, Lq_))
+    output = (sampling_value_list *
+              attention_weights).sum(-1).reshape((N_, M_ * D_, Lq_))
     return mx.transpose(output, (0, 2, 1))
+
 
 class MSDeformAttn(nn.Module):
     def __init__(self, d_model=256, n_levels=4, n_heads=8, n_points=4):
@@ -265,7 +272,8 @@ class MSDeformAttn(nn.Module):
         del self.params['self']
         del self.params['__class__']
         if d_model % n_heads != 0:
-            raise ValueError(f'd_model must be divisible by n_heads, but got {d_model} and {n_heads}')
+            raise ValueError(
+                f'd_model must be divisible by n_heads, but got {d_model} and {n_heads}')
         _d_per_head = d_model // n_heads
         # if not _is_power_of_2(_d_per_head):
         #     warnings.warn("You'd better set d_model in MSDeformAttn to make the dimension of each attention head a power of 2 "
@@ -276,39 +284,52 @@ class MSDeformAttn(nn.Module):
         self.n_heads = n_heads
         self.n_points = n_points
 
-        self.sampling_offsets = nn.Linear(d_model, n_heads * n_levels * n_points * 2)
-        self.attention_weights = nn.Linear(d_model, n_heads * n_levels * n_points)
+        self.sampling_offsets = nn.Linear(
+            d_model, n_heads * n_levels * n_points * 2)
+        self.attention_weights = nn.Linear(
+            d_model, n_heads * n_levels * n_points)
         self.value_proj = nn.Linear(d_model, d_model)
         self.output_proj = nn.Linear(d_model, d_model)
-
 
     def __call__(self, query, reference_points, input_flatten, input_spatial_shapes, input_level_start_index, input_padding_mask=None):
         N, Len_q, _ = query.shape
         N, Len_in, _ = input_flatten.shape
         # reference_points = mx.stop_gradient(reference_points)
-        assert (input_spatial_shapes[:, 0] * input_spatial_shapes[:, 1]).sum() == Len_in
+        assert (input_spatial_shapes[:, 0] *
+                input_spatial_shapes[:, 1]).sum() == Len_in
         value = self.value_proj(input_flatten)
         if input_padding_mask is not None:
-            value = value * (1 - input_padding_mask[..., None].astype(value.dtype))
-        value = value.reshape(N, Len_in, self.n_heads, self.d_model // self.n_heads)
-        sampling_offsets = self.sampling_offsets(query).reshape(N, Len_q, self.n_heads, self.n_levels, self.n_points, 2)
+            value = value * \
+                (1 - input_padding_mask[..., None].astype(value.dtype))
+        value = value.reshape(N, Len_in, self.n_heads,
+                              self.d_model // self.n_heads)
+        sampling_offsets = self.sampling_offsets(query).reshape(
+            N, Len_q, self.n_heads, self.n_levels, self.n_points, 2)
 
-        attention_weights = self.attention_weights(query).reshape(N, Len_q, self.n_heads, self.n_levels * self.n_points)
+        attention_weights = self.attention_weights(query).reshape(
+            N, Len_q, self.n_heads, self.n_levels * self.n_points)
 
-        attention_weights = nn.softmax(attention_weights, axis=-1).reshape(N, Len_q, self.n_heads, self.n_levels, self.n_points)
+        attention_weights = nn.softmax(
+            attention_weights, axis=-1).reshape(N, Len_q, self.n_heads, self.n_levels, self.n_points)
 
         if reference_points.shape[-1] == 2:
             input_spatial_shapes_mx = mx.array(input_spatial_shapes)
             input_spatial_shapes_mx = mx.stop_gradient(input_spatial_shapes_mx)
-            offset_normalizer = mx.stack([input_spatial_shapes_mx[:, 1], input_spatial_shapes_mx[:, 0]], axis=-1)
-            sampling_locations = reference_points[:, :, None, :, None, :] + sampling_offsets / offset_normalizer[None, None, None, :, None, :]
+            offset_normalizer = mx.stack(
+                [input_spatial_shapes_mx[:, 1], input_spatial_shapes_mx[:, 0]], axis=-1)
+            sampling_locations = reference_points[:, :, None, :, None, :] + \
+                sampling_offsets / \
+                offset_normalizer[None, None, None, :, None, :]
         elif reference_points.shape[-1] == 4:
-            sampling_locations = reference_points[:, :, None, :, None, :2] + sampling_offsets / self.n_points * reference_points[:, :, None, :, None, 2:] * 0.5
+            sampling_locations = reference_points[:, :, None, :, None, :2] + \
+                sampling_offsets / self.n_points * \
+                reference_points[:, :, None, :, None, 2:] * 0.5
         else:
-            raise ValueError(f'Last dim of reference_points must be 2 or 4, but got {reference_points.shape[-1]} instead.')
+            raise ValueError(
+                f'Last dim of reference_points must be 2 or 4, but got {reference_points.shape[-1]} instead.')
         # sampling_locations = mx.stop_gradient(sampling_locations)
-        output = ms_deform_attn_core(value, input_spatial_shapes, sampling_locations, attention_weights)
+        output = ms_deform_attn_core(
+            value, input_spatial_shapes, sampling_locations, attention_weights)
         output = self.output_proj(output)
         # print(output.shape)
         return output
-    

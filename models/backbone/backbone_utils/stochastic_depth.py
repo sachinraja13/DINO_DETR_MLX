@@ -23,9 +23,11 @@ def stochastic_depth(
         mx.array[N, ...]: The randomly zeroed tensor.
     """
     if p < 0.0 or p > 1.0:
-        raise ValueError(f"drop probability has to be between 0 and 1, but got {p}")
+        raise ValueError(
+            f"drop probability has to be between 0 and 1, but got {p}")
     if mode not in ["batch", "row"]:
-        raise ValueError(f"mode has to be either 'batch' or 'row', but got {mode}")
+        raise ValueError(
+            f"mode has to be either 'batch' or 'row', but got {mode}")
     if not training or p == 0.0:
         return input
 

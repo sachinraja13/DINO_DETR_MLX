@@ -9,7 +9,8 @@ import mlx.core as mx
 import mlx.nn as nn
 from .deformable_attn import MSDeformAttn
 from .utils import gen_encoder_output_proposals, MLP, _get_activation_fn, gen_sineembed_for_position
-    
+
+
 class DeformableTransformerEncoderLayer(nn.Module):
     def __init__(self,
                  d_model=256, d_ffn=1024,
@@ -24,16 +25,18 @@ class DeformableTransformerEncoderLayer(nn.Module):
         del self.params['__class__']
         # Self-attention mechanism
         if use_deformable_box_attn:
-            self.self_attn = nn.MSDeformableBoxAttention(d_model, n_levels, n_heads, n_boxes=n_points, used_func=box_attn_type)
+            self.self_attn = nn.MSDeformableBoxAttention(
+                d_model, n_levels, n_heads, n_boxes=n_points, used_func=box_attn_type)
         else:
             self.self_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
-        
+
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
-        
+
         # Feedforward network
         self.linear1 = nn.Linear(d_model, d_ffn)
-        self.activation = _get_activation_fn(activation)  # Use MLX activation functions
+        self.activation = _get_activation_fn(
+            activation)  # Use MLX activation functions
         self.dropout2 = nn.Dropout(dropout)
         self.linear2 = nn.Linear(d_ffn, d_model)
         self.dropout3 = nn.Dropout(dropout)
@@ -57,7 +60,8 @@ class DeformableTransformerEncoderLayer(nn.Module):
 
     def __call__(self, src, pos, reference_points, spatial_shapes, level_start_index, key_padding_mask=None):
         # Self-attention
-        src2 = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index, key_padding_mask)
+        src2 = self.self_attn(self.with_pos_embed(
+            src, pos), reference_points, src, spatial_shapes, level_start_index, key_padding_mask)
         src = src + self.dropout1(src2)
         src = self.norm1(src)
         # Feedforward network

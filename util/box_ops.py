@@ -2,7 +2,6 @@ import os
 import mlx.core as mx
 
 
-
 def box_cxcywh_to_xyxy(x):
     x_c, y_c, w, h = x[..., 0], x[..., 1], x[..., 2], x[..., 3]
     b = [(x_c - 0.5 * w), (y_c - 0.5 * h),
@@ -111,4 +110,3 @@ def generalized_box_iou_pairwise(boxes1, boxes2):
     area = wh[:, 0] * wh[:, 1]
 
     return iou - (area - union) / area
-

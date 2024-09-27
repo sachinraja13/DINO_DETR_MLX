@@ -29,7 +29,8 @@ def _get_relative_position_bias(
     window_size: List[int],
 ) -> mx.array:
     N = window_size[0] * window_size[1]
-    relative_position_bias = relative_position_bias_table[relative_position_index]  # type: ignore[index]
+    # type: ignore[index]
+    relative_position_bias = relative_position_bias_table[relative_position_index]
     relative_position_bias = relative_position_bias.reshape(N, N, -1)
     relative_position_bias = relative_position_bias.transpose(2, 0, 1)[None]
     return relative_position_bias
@@ -137,7 +138,8 @@ def broadcast_arrays(*args):
     for shape, arg in zip(shapes, args):
         broadcasted_array = mx.zeros(broadcast_shape, dtype=arg.dtype)
         for i, dim in enumerate(shape):
-            slices = [slice(0, dim) if j == i else slice(None) for j in range(ndim)]
+            slices = [slice(0, dim) if j == i else slice(None)
+                      for j in range(ndim)]
             broadcasted_array[tuple(slices)] = arg
         broadcasted_arrays.append(broadcasted_array)
     return tuple(broadcasted_arrays)
@@ -173,7 +175,8 @@ def dropout_fn(x: mx.array, p: float, training: bool) -> mx.array:
         Tensor: The dropout tensor.
     """
     if p > 0 and training:
-        mask = mx.random.uniform(0, 1, x.shape, dtype=x.dtype, ctx=x.context) > p
+        mask = mx.random.uniform(
+            0, 1, x.shape, dtype=x.dtype, ctx=x.context) > p
         x = x * mask / (1 - p)
     return x
 
@@ -249,7 +252,7 @@ def shifted_window_attention(
     if logit_scale is not None and qkv_bias is not None:
         qkv_bias = qkv_bias
         length = qkv_bias.size // 3
-        qkv_bias[length : 2 * length] = 0
+        qkv_bias[length: 2 * length] = 0
     qkv = mx.matmul(x, qkv_weight.T) + qkv_bias
     qkv = qkv.reshape(x.shape[0], x.shape[1], 3, num_heads, C // num_heads).transpose(
         2, 0, 3, 1, 4
@@ -257,8 +260,10 @@ def shifted_window_attention(
     q, k, v = qkv[0], qkv[1], qkv[2]
     if logit_scale is not None:
         # cosine attention
-        attn = normalize(q, axis=-1) @ normalize(k, axis=-1).transpose(0, 1, 3, 2)
-        logit_scale = mx.clip(logit_scale, a_min=None, a_max=math.log(100.0)).exp()
+        attn = normalize(q, axis=-1) @ normalize(k,
+                                                 axis=-1).transpose(0, 1, 3, 2)
+        logit_scale = mx.clip(logit_scale, a_min=None,
+                              a_max=math.log(100.0)).exp()
         attn = attn * logit_scale
     else:
         q = q * (C // num_heads) ** -0.5
@@ -284,7 +289,7 @@ def shifted_window_attention(
         count = 0
         for h in h_slices:
             for w in w_slices:
-                attn_mask[h[0] : h[1], w[0] : w[1]] = count
+                attn_mask[h[0]: h[1], w[0]: w[1]] = count
                 count += 1
         attn_mask = attn_mask.reshape(
             pad_H // window_size[0],
@@ -307,7 +312,8 @@ def shifted_window_attention(
     attn = nn.softmax(attn, axis=-1)
     attn = dropout_fn(attn, p=attention_dropout, training=training)
 
-    x = mx.matmul(attn, v).transpose(0, 2, 1, 3).reshape(x.shape[0], x.shape[1], C)
+    x = mx.matmul(attn, v).transpose(
+        0, 2, 1, 3).reshape(x.shape[0], x.shape[1], C)
     x = mx.matmul(x, proj_weight.T) + proj_bias
     x = dropout_fn(x, p=dropout, training=training)
 
@@ -382,10 +388,12 @@ class ShiftedWindowAttention(nn.Module):
             coords_flatten[:, :, None] - coords_flatten[:, None, :]
         )  # 2, Wh*Ww, Wh*Ww
         relative_coords = relative_coords.transpose(1, 2, 0)  # Wh*Ww, Wh*Ww, 2
-        relative_coords[:, :, 0] += self.window_size[0] - 1  # shift to start from 0
+        relative_coords[:, :, 0] += self.window_size[0] - \
+            1  # shift to start from 0
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
-        relative_position_index = relative_coords.sum(-1).flatten()  # Wh*Ww*Wh*Ww
+        # Wh*Ww*Wh*Ww
+        relative_position_index = relative_coords.sum(-1).flatten()
         self.relative_position_index = relative_position_index
 
     def get_relative_position_bias(self) -> mx.array:
@@ -455,7 +463,7 @@ class ShiftedWindowAttentionV2(ShiftedWindowAttention):
         )
         if qkv_bias:
             length = self.qkv.bias.size // 3
-            self.qkv.bias[length : 2 * length] = 0
+            self.qkv.bias[length: 2 * length] = 0
 
     def define_relative_position_bias_table(self):
         # get relative_coords_table
@@ -465,7 +473,8 @@ class ShiftedWindowAttentionV2(ShiftedWindowAttention):
         relative_coords_w = mx.arange(
             -(self.window_size[1] - 1), self.window_size[1], dtype=mx.float32
         )
-        relative_coords_table = mx.stack(meshgrid(relative_coords_h, relative_coords_w))
+        relative_coords_table = mx.stack(
+            meshgrid(relative_coords_h, relative_coords_w))
         relative_coords_table = relative_coords_table.transpose(1, 2, 0)[
             None
         ]  # 1, 2*Wh-1, 2*Ww-1, 2
@@ -483,7 +492,8 @@ class ShiftedWindowAttentionV2(ShiftedWindowAttention):
 
     def get_relative_position_bias(self) -> mx.array:
         relative_position_bias = _get_relative_position_bias(
-            self.cpb_mlp(self.relative_coords_table).reshape(-1, self.num_heads),
+            self.cpb_mlp(self.relative_coords_table).reshape(-1,
+                                                             self.num_heads),
             self.relative_position_index,  # type: ignore[arg-type]
             self.window_size,
         )

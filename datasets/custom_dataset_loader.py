@@ -27,7 +27,8 @@ class CustomDataLoader:
         if self.current_index >= len(self.indices):
             raise StopIteration
             self.current_index = 0
-        batch_indices = self.indices[self.current_index:self.current_index + self.batch_size]
+        batch_indices = self.indices[self.current_index:
+                                     self.current_index + self.batch_size]
         self.current_index += self.batch_size
         batch = [self.dataset[i] for i in batch_indices]
         if self.collate_fn:

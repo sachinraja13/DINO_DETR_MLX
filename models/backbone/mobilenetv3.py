@@ -30,7 +30,8 @@ class InvertedResidualConfig:
     ):
         self.input_channels = self.adjust_channels(input_channels, width_mult)
         self.kernel = kernel
-        self.expanded_channels = self.adjust_channels(expanded_channels, width_mult)
+        self.expanded_channels = self.adjust_channels(
+            expanded_channels, width_mult)
         self.out_channels = self.adjust_channels(out_channels, width_mult)
         self.use_se = use_se
         self.use_hs = activation == "HS"
@@ -140,7 +141,8 @@ class MobileNetV3(nn.Module):
         super().__init__()
 
         if not inverted_residual_setting:
-            raise ValueError("The inverted_residual_setting should not be empty")
+            raise ValueError(
+                "The inverted_residual_setting should not be empty")
         elif not (
             isinstance(inverted_residual_setting, Sequence)
             and all(
@@ -276,7 +278,8 @@ def _mobilenet_v3_conf(
             bneck_conf(40, 5, 240, 40, True, "HS", 1, 1),
             bneck_conf(40, 5, 120, 48, True, "HS", 1, 1),
             bneck_conf(48, 5, 144, 48, True, "HS", 1, 1),
-            bneck_conf(48, 5, 288, 96 // reduce_divider, True, "HS", 2, dilation),  # C4
+            bneck_conf(48, 5, 288, 96 // reduce_divider,
+                       True, "HS", 2, dilation),  # C4
             bneck_conf(
                 96 // reduce_divider,
                 5,

@@ -10,8 +10,7 @@ import mlx.nn as nn
 from .deformable_attn import MSDeformAttn
 from .utils import gen_encoder_output_proposals, MLP, _get_activation_fn, gen_sineembed_for_position
 
-    
-    
+
 class DeformableTransformerDecoderLayer(nn.Module):
     def __init__(self, d_model=256, d_ffn=1024,
                  dropout=0.1, activation="relu",
@@ -30,10 +29,12 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
         # Cross attention
         if use_deformable_box_attn:
-            self.cross_attn = nmn.MSDeformableBoxAttention(d_model, n_levels, n_heads, n_boxes=n_points, used_func=box_attn_type)
+            self.cross_attn = nmn.MSDeformableBoxAttention(
+                d_model, n_levels, n_heads, n_boxes=n_points, used_func=box_attn_type)
         else:
-            self.cross_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
-        
+            self.cross_attn = MSDeformAttn(
+                d_model, n_levels, n_heads, n_points)
+
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
@@ -73,38 +74,43 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
         return tgt
 
-    def forward_sa(self, tgt, tgt_query_pos=None, tgt_query_sine_embed=None, tgt_key_padding_mask=None, 
-                   tgt_reference_points=None, memory=None, memory_key_padding_mask=None, 
-                   memory_level_start_index=None, memory_spatial_shapes=None, memory_pos=None, 
+    def forward_sa(self, tgt, tgt_query_pos=None, tgt_query_sine_embed=None, tgt_key_padding_mask=None,
+                   tgt_reference_points=None, memory=None, memory_key_padding_mask=None,
+                   memory_level_start_index=None, memory_spatial_shapes=None, memory_pos=None,
                    self_attn_mask=None, cross_attn_mask=None):
-        
+
         # Self-attention
         if self.self_attn is not None:
             if self.decoder_sa_type == 'sa':
                 q = k = self.with_pos_embed(tgt, tgt_query_pos)
-                tgt2 = self.self_attn(q.transpose(1,0,2), k.transpose(1,0,2), tgt.transpose(1,0,2), mask=self_attn_mask).transpose(1,0,2)
+                tgt2 = self.self_attn(q.transpose(1, 0, 2), k.transpose(
+                    1, 0, 2), tgt.transpose(1, 0, 2), mask=self_attn_mask).transpose(1, 0, 2)
                 tgt = tgt + self.dropout2(tgt2)
                 tgt = self.norm2(tgt)
             elif self.decoder_sa_type == 'ca_label':
                 bs = tgt.shape[1]
-                k = v = self.label_embedding.weight[:, None, :].repeat(1, bs, 1)
-                tgt2 = self.self_attn(tgt.transpose(1,0,2), k.transpose(1,0,2), v.transpose(1,0,2), mask=self_attn_mask).transpose(1,0,2)
+                k = v = self.label_embedding.weight[:, None, :].repeat(
+                    1, bs, 1)
+                tgt2 = self.self_attn(tgt.transpose(1, 0, 2), k.transpose(
+                    1, 0, 2), v.transpose(1, 0, 2), mask=self_attn_mask).transpose(1, 0, 2)
                 tgt = tgt + self.dropout2(tgt2)
                 tgt = self.norm2(tgt)
             elif self.decoder_sa_type == 'ca_content':
                 tgt2 = self.self_attn(self.with_pos_embed(tgt, tgt_query_pos).transpose(1, 0, 2),
-                                      tgt_reference_points.transpose(1, 0, 2, 3),
+                                      tgt_reference_points.transpose(
+                                          1, 0, 2, 3),
                                       memory.transpose(1, 0, 2), memory_spatial_shapes, memory_level_start_index, memory_key_padding_mask).transpose(1, 0, 2)
                 tgt = tgt + self.dropout2(tgt2)
                 tgt = self.norm2(tgt)
             else:
-                raise NotImplementedError(f"Unknown decoder_sa_type {self.decoder_sa_type}")
+                raise NotImplementedError(
+                    f"Unknown decoder_sa_type {self.decoder_sa_type}")
 
         return tgt
 
-    def forward_ca(self, tgt, tgt_query_pos=None, tgt_query_sine_embed=None, tgt_key_padding_mask=None, 
-                   tgt_reference_points=None, memory=None, memory_key_padding_mask=None, 
-                   memory_level_start_index=None, memory_spatial_shapes=None, memory_pos=None, 
+    def forward_ca(self, tgt, tgt_query_pos=None, tgt_query_sine_embed=None, tgt_key_padding_mask=None,
+                   tgt_reference_points=None, memory=None, memory_key_padding_mask=None,
+                   memory_level_start_index=None, memory_spatial_shapes=None, memory_pos=None,
                    self_attn_mask=None, cross_attn_mask=None):
 
         # Cross-attention
@@ -114,7 +120,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
             elif self.key_aware_type == 'proj_mean':
                 tgt = tgt + self.key_aware_proj(memory).mean(0, keepdim=True)
             else:
-                raise NotImplementedError(f"Unknown key_aware_type: {self.key_aware_type}")
+                raise NotImplementedError(
+                    f"Unknown key_aware_type: {self.key_aware_type}")
         tgt2 = self.cross_attn(self.with_pos_embed(tgt, tgt_query_pos).transpose(1, 0, 2),
                                tgt_reference_points.transpose(1, 0, 2, 3),
                                memory.transpose(1, 0, 2), memory_spatial_shapes, memory_level_start_index, memory_key_padding_mask).transpose(1, 0, 2)
@@ -123,26 +130,25 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
         return tgt
 
-    def __call__(self, tgt, tgt_query_pos=None, tgt_query_sine_embed=None, tgt_key_padding_mask=None, 
-                tgt_reference_points=None, memory=None, memory_key_padding_mask=None, 
-                memory_level_start_index=None, memory_spatial_shapes=None, memory_pos=None, 
-                self_attn_mask=None, cross_attn_mask=None):
+    def __call__(self, tgt, tgt_query_pos=None, tgt_query_sine_embed=None, tgt_key_padding_mask=None,
+                 tgt_reference_points=None, memory=None, memory_key_padding_mask=None,
+                 memory_level_start_index=None, memory_spatial_shapes=None, memory_pos=None,
+                 self_attn_mask=None, cross_attn_mask=None):
 
         for funcname in self.module_seq:
             if funcname == 'ffn':
                 tgt = self.forward_ffn(tgt)
             elif funcname == 'ca':
-                tgt = self.forward_ca(tgt, tgt_query_pos, tgt_query_sine_embed, 
-                                      tgt_key_padding_mask, tgt_reference_points, 
-                                      memory, memory_key_padding_mask, memory_level_start_index, 
+                tgt = self.forward_ca(tgt, tgt_query_pos, tgt_query_sine_embed,
+                                      tgt_key_padding_mask, tgt_reference_points,
+                                      memory, memory_key_padding_mask, memory_level_start_index,
                                       memory_spatial_shapes, memory_pos, self_attn_mask, cross_attn_mask)
             elif funcname == 'sa':
-                tgt = self.forward_sa(tgt, tgt_query_pos, tgt_query_sine_embed, 
-                                      tgt_key_padding_mask, tgt_reference_points, 
-                                      memory, memory_key_padding_mask, memory_level_start_index, 
+                tgt = self.forward_sa(tgt, tgt_query_pos, tgt_query_sine_embed,
+                                      tgt_key_padding_mask, tgt_reference_points,
+                                      memory, memory_key_padding_mask, memory_level_start_index,
                                       memory_spatial_shapes, memory_pos, self_attn_mask, cross_attn_mask)
             else:
                 raise ValueError(f"Unknown funcname {funcname}")
 
         return tgt
-    

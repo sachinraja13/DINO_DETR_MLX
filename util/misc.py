@@ -5,7 +5,7 @@ Misc functions, including distributed helpers.
 Mostly copy-paste from torchvision references.
 """
 import os
-import random 
+import random
 import subprocess
 import time
 from collections import OrderedDict, defaultdict, deque
@@ -13,7 +13,8 @@ import datetime
 import pickle
 from typing import Optional, List
 from mlx.utils import tree_flatten, tree_unflatten
-import json, time
+import json
+import time
 import numpy as np
 import mlx.core as mx
 import mlx.nn as nn
@@ -150,6 +151,7 @@ class MetricLogger(object):
         print_func('{} Total time: {} ({:.4f} s / it)'.format(
             header, total_time_str, total_time / len(iterable)))
 
+
 def collate_fn(batch):
 
     batch = list(zip(*batch))
@@ -160,6 +162,7 @@ def collate_fn(batch):
 def find_smallest_i_divisible_by_n(nums, n=32):
     return [((k + n - 1) // n) * n for k in nums[:-1]]
 
+
 def _max_by_axis(the_list):
     # type: (List[List[int]]) -> List[int]
     maxes = the_list[0]
@@ -169,6 +172,7 @@ def _max_by_axis(the_list):
     maxes_div_n = find_smallest_i_divisible_by_n(maxes, n=64)
     maxes_div_n.append(maxes[-1])
     return maxes_div_n
+
 
 def nested_array_dict_array_list(array_list: List[mx.array], pad_imgs=pad_all_images_to_same_size, img_fixed_size=image_array_fixed_size):
     # TODO make this more general
@@ -186,7 +190,8 @@ def nested_array_dict_array_list(array_list: List[mx.array], pad_imgs=pad_all_im
         mask = mx.ones((b, h, w), dtype=mx.bool_)
         for i in range(b):
             img = array_list[i]
-            feature_map[i, : img.shape[0], : img.shape[1], : img.shape[2]] = img
+            feature_map[i, : img.shape[0],
+                        : img.shape[1], : img.shape[2]] = img
             mask[i, : img.shape[0], : img.shape[1]] = False
     else:
         raise ValueError('not supported')
@@ -206,21 +211,21 @@ def interpolate(input, scale_factor=None, mode="nearest", align_corners=False):
     return nn.UpSample(scale_factor, mode, align_corners)(input)
 
 
-
 class color_sys():
     def __init__(self, num_colors) -> None:
         self.num_colors = num_colors
-        colors=[]
+        colors = []
         for i in np.arange(0., 360., 360. / num_colors):
             hue = i/360.
             lightness = (50 + np.random.rand() * 10)/100.
             saturation = (90 + np.random.rand() * 10)/100.
-            colors.append(tuple([int(j*255) for j in colorsys.hls_to_rgb(hue, lightness, saturation)]))
+            colors.append(
+                tuple([int(j*255) for j in colorsys.hls_to_rgb(hue, lightness, saturation)]))
         self.colors = colors
 
     def __call__(self, idx):
         return self.colors[idx]
-    
+
 
 def inverse_sigmoid_np(x, eps=1e-3):
     x = np.clip(x, 0, 1)
@@ -235,6 +240,7 @@ def inverse_sigmoid(x, eps=1e-3):
     x2 = mx.clip((1 - x), eps, None)
     return mx.log(x1/x2)
 
+
 def clean_state_dict(state_dict):
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
@@ -243,28 +249,29 @@ def clean_state_dict(state_dict):
         new_state_dict[k] = v
     return new_state_dict
 
+
 def get_state_dict(model, optimizer, args, epoch=None):
     if epoch is not None:
         args.last_epoch = epoch
     state_dict = {
-        'model' : model,
-        'optimizer_state' : optimizer.state,
-        'args' : args
+        'model': model,
+        'optimizer_state': optimizer.state,
+        'args': args
     }
     return state_dict
 
 
-
 def get_state_path_dict(checkpoint_path):
     save_type_dict = {
-        'model' : 'model.safetensors',
-        'optimizer_state' : 'optimizer_state.safetensors',
-        'args' : 'args.json'
+        'model': 'model.safetensors',
+        'optimizer_state': 'optimizer_state.safetensors',
+        'args': 'args.json'
     }
     path_dict = {}
     for k in save_type_dict:
         path_dict[k] = str(checkpoint_path / save_type_dict[k])
     return path_dict
+
 
 def load_complete_state(path_dict):
     model = None
@@ -283,10 +290,12 @@ def load_complete_state(path_dict):
     except:
         print("Unable to load MLX model")
     try:
-        optimizer_state = tree_unflatten(list(mx.load(path_dict['optimizer_state']).items()))
+        optimizer_state = tree_unflatten(
+            list(mx.load(path_dict['optimizer_state']).items()))
     except:
         print("Unable to load MLX optimizer state")
     return model, optimizer_state, args
+
 
 def save_complete_state(path_dict, state_dict):
     assert 'model' in path_dict and 'model' in state_dict, "model key not found while saving"
@@ -306,4 +315,3 @@ def save_complete_state(path_dict, state_dict):
         mx.save_safetensors(path_dict['optimizer_state'], dict(state))
     except:
         print("Unable to save MLX optimizer state")
-    

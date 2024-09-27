@@ -2,8 +2,9 @@ _base_ = ['coco_transformer.py']
 
 compile_computation_graph = True
 compile_forward = True
-compile_backward = False # Will not help if compile_backward=True and compile_forward=False
-device = 'gpu' # 'gpu' or 'cpu'
+# Will not help if compile_backward=True and compile_forward=False
+compile_backward = False
+device = 'gpu'  # 'gpu' or 'cpu'
 precision = 'full'
 
 load_pytorch_weights = True
@@ -11,7 +12,7 @@ pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 
 dataset_file = 'coco'
 coco_year = '2017'
-num_classes=91
+num_classes = 91
 num_samples_synthetic_dataset = 1000
 num_classes_synthetic_dataset = 91
 min_targets_per_image = 50
@@ -104,8 +105,8 @@ interm_loss_coef = 1.0
 no_interm_box_loss = False
 focal_alpha = 0.25
 
-decoder_sa_type = 'sa' # ['sa', 'ca_label', 'ca_content']
-matcher_type = 'HungarianMatcher' # or SimpleMinsumMatcher
+decoder_sa_type = 'sa'  # ['sa', 'ca_label', 'ca_content']
+matcher_type = 'HungarianMatcher'  # or SimpleMinsumMatcher
 decoder_module_seq = ['sa', 'ca', 'ffn']
 nms_iou_threshold = -1
 

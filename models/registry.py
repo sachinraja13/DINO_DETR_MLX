@@ -47,4 +47,5 @@ class Registry(object):
 
         return module_build_function
 
+
 MODULE_BUILD_FUNCS = Registry('model build functions')

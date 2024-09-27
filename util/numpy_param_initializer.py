@@ -8,7 +8,8 @@ from mlx.utils import tree_flatten, tree_unflatten
 np.random.seed(0)
 torch.manual_seed(0)
 
-def apply(dst, parameters, param_key = ''):
+
+def apply(dst, parameters, param_key=''):
     if isinstance(parameters, dict):
         for k in parameters:
             if k in dst:
@@ -20,7 +21,7 @@ def apply(dst, parameters, param_key = ''):
                         dst[k] = new_value
                         param_key = param_key + k
                     else:
-                        print("Not updated : " , param_key)
+                        print("Not updated : ", param_key)
                         print(current_value.shape, new_value.shape)
                 elif isinstance(current_value, mnn.Module):
                     param_key = param_key + k + "."
@@ -44,7 +45,6 @@ def apply(dst, parameters, param_key = ''):
                 apply(current_value, new_value, param_key)
 
 
-
 def handle_in_proj_weight(name, param):
     l = param.shape[0]
     qkv_dim = l // 3
@@ -58,11 +58,12 @@ def handle_in_proj_weight(name, param):
     k_name = k_name.replace("in_proj_weight", "key_proj.weight")
     v_name = v_name.replace("in_proj_weight", "value_proj.weight")
     out_dict = {
-        q_name : q,
-        k_name : k,
-        v_name : v
+        q_name: q,
+        k_name: k,
+        v_name: v
     }
     return out_dict
+
 
 def handle_in_proj_bias(name, param):
     l = param.shape[0]
@@ -77,11 +78,12 @@ def handle_in_proj_bias(name, param):
     k_name = k_name.replace("in_proj_bias", "key_proj.bias")
     v_name = v_name.replace("in_proj_bias", "value_proj.bias")
     out_dict = {
-        q_name : q,
-        k_name : k,
-        v_name : v
+        q_name: q,
+        k_name: k,
+        v_name: v
     }
     return out_dict
+
 
 def initialize_numpy_arrays(model):
     numpy_arrays = {}
@@ -90,7 +92,8 @@ def initialize_numpy_arrays(model):
             continue
         print(name, param.shape)
         param_shape = param.shape
-        np_array = np.random.randn(*param_shape).astype(np.float32) / param_shape[-1]**0.5
+        np_array = np.random.randn(
+            *param_shape).astype(np.float32) / param_shape[-1]**0.5
         if 'in_proj_weight' in name:
             in_proj_weight_dict = handle_in_proj_weight(name, np_array)
             numpy_arrays.update(in_proj_weight_dict)
@@ -101,6 +104,7 @@ def initialize_numpy_arrays(model):
             numpy_arrays[name] = np_array
         param.data = torch.from_numpy(np_array)
     return model, numpy_arrays
+
 
 def initialize_mlx_model(mlx_model, numpy_arrays):
     new_params = []
@@ -120,9 +124,9 @@ def initialize_mlx_model(mlx_model, numpy_arrays):
             print("Key not found in mlx model: ", name)
     return mlx_model
 
+
 def initialize_pytorch_and_numpy_models_with_same_random_params(pt_model, mlx_model):
     # Initialize parameters with random NumPy arrays
     pt_model, numpy_arrays = initialize_numpy_arrays(pt_model)
     mlx_params = initialize_mlx_model(mlx_model, numpy_arrays)
     apply(mlx_model.children(), mlx_params)
-

@@ -21,7 +21,8 @@ from typing import List, Dict
 import mlx.core as mx
 import mlx.nn as nn
 from util import box_ops
-from util.misc import (nested_array_dict_array_list, interpolate, inverse_sigmoid)
+from util.misc import (nested_array_dict_array_list,
+                       interpolate, inverse_sigmoid)
 from ..backbone import build_backbone
 from .matcher import build_matcher, HungarianMatcher
 from .deformable_transformer import DeformableTransformer, build_deformable_transformer
@@ -31,30 +32,30 @@ import numpy as np
 from ..registry import MODULE_BUILD_FUNCS
 
 
-
 class DINO(nn.Module):
     """ This is the Cross-Attention Detector module that performs object detection """
-    def __init__(self, backbone, transformer, num_classes, num_queries, 
-                    aux_loss=False, iter_update=False,
-                    query_dim=2, 
-                    random_refpoints_xy=False,
-                    fix_refpoints_hw=-1,
-                    num_feature_levels=1,
-                    nheads=8,
-                    # two stage
-                    two_stage_type='no', # ['no', 'standard']
-                    two_stage_add_query_num=0,
-                    dec_pred_class_embed_share=True,
-                    dec_pred_bbox_embed_share=True,
-                    two_stage_class_embed_share=True,
-                    two_stage_bbox_embed_share=True,
-                    decoder_sa_type = 'sa',
-                    num_patterns = 0,
-                    dn_number = 100,
-                    dn_box_noise_scale = 0.4,
-                    dn_label_noise_ratio = 0.5,
-                    dn_labelbook_size = 100,
-                    ):
+
+    def __init__(self, backbone, transformer, num_classes, num_queries,
+                 aux_loss=False, iter_update=False,
+                 query_dim=2,
+                 random_refpoints_xy=False,
+                 fix_refpoints_hw=-1,
+                 num_feature_levels=1,
+                 nheads=8,
+                 # two stage
+                 two_stage_type='no',  # ['no', 'standard']
+                 two_stage_add_query_num=0,
+                 dec_pred_class_embed_share=True,
+                 dec_pred_bbox_embed_share=True,
+                 two_stage_class_embed_share=True,
+                 two_stage_bbox_embed_share=True,
+                 decoder_sa_type='sa',
+                 num_patterns=0,
+                 dn_number=100,
+                 dn_box_noise_scale=0.4,
+                 dn_label_noise_ratio=0.5,
+                 dn_labelbook_size=100,
+                 ):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -76,7 +77,8 @@ class DINO(nn.Module):
         self.num_feature_levels = num_feature_levels
         self.nheads = nheads
         self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
-        self.dn_encoder = DNEncoder(num_queries, num_classes, hidden_dim, self.label_enc)
+        self.dn_encoder = DNEncoder(
+            num_queries, num_classes, hidden_dim, self.label_enc)
         # setting query dim
         self.query_dim = query_dim
         assert query_dim == 4
@@ -102,7 +104,8 @@ class DINO(nn.Module):
                 ))
             for _ in range(num_feature_levels - num_backbone_outs):
                 input_proj_list.append(nn.Sequential(
-                    nn.Conv2d(in_channels, hidden_dim, kernel_size=3, stride=2, padding=1),
+                    nn.Conv2d(in_channels, hidden_dim,
+                              kernel_size=3, stride=2, padding=1),
                     nn.GroupNorm(32, hidden_dim),
                 ))
                 in_channels = hidden_dim
@@ -111,7 +114,8 @@ class DINO(nn.Module):
             assert two_stage_type == 'no', "two_stage_type should be no if num_feature_levels=1 !!!"
             self.input_proj = [
                 nn.Sequential(
-                    nn.Conv2d(backbone.num_channels[-1], hidden_dim, kernel_size=1),
+                    nn.Conv2d(
+                        backbone.num_channels[-1], hidden_dim, kernel_size=1),
                     nn.GroupNorm(32, hidden_dim),
                 )]
 
@@ -132,23 +136,28 @@ class DINO(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         _class_embed.bias = mx.ones(self.num_classes) * bias_value
-        nn.init.constant(0)(_bbox_embed.layers[-1].weight) 
+        nn.init.constant(0)(_bbox_embed.layers[-1].weight)
         nn.init.constant(0)(_bbox_embed.layers[-1].bias)
 
         if dec_pred_bbox_embed_share:
-            box_embed_layerlist = [_bbox_embed for i in range(transformer.num_decoder_layers)]
+            box_embed_layerlist = [_bbox_embed for i in range(
+                transformer.num_decoder_layers)]
         else:
-            box_embed_layerlist = [MLP(hidden_dim, hidden_dim, 4, 3) for i in range(transformer.num_decoder_layers)]
+            box_embed_layerlist = [MLP(hidden_dim, hidden_dim, 4, 3)
+                                   for i in range(transformer.num_decoder_layers)]
             for i in range(transformer.num_decoder_layers):
-                nn.init.constant(0)(box_embed_layerlist[i].layers[-1].weight) 
+                nn.init.constant(0)(box_embed_layerlist[i].layers[-1].weight)
                 nn.init.constant(0)(box_embed_layerlist[i].layers[-1].bias)
         if dec_pred_class_embed_share:
-            class_embed_layerlist = [_class_embed for i in range(transformer.num_decoder_layers)]
+            class_embed_layerlist = [_class_embed for i in range(
+                transformer.num_decoder_layers)]
         else:
-            class_embed_layerlist = [nn.Linear(hidden_dim, num_classes) for i in range(transformer.num_decoder_layers)]
+            class_embed_layerlist = [nn.Linear(hidden_dim, num_classes) for i in range(
+                transformer.num_decoder_layers)]
             for i in range(transformer.num_decoder_layers):
-                class_embed_layerlist[i].bias = mx.ones(self.num_classes) * bias_value
-        self.bbox_embed =box_embed_layerlist
+                class_embed_layerlist[i].bias = mx.ones(
+                    self.num_classes) * bias_value
+        self.bbox_embed = box_embed_layerlist
         self.class_embed = class_embed_layerlist
         self.transformer.decoder.bbox_embed = self.bbox_embed
         self.transformer.decoder.class_embed = self.class_embed
@@ -156,24 +165,30 @@ class DINO(nn.Module):
         # two stage
         self.two_stage_type = two_stage_type
         self.two_stage_add_query_num = two_stage_add_query_num
-        assert two_stage_type in ['no', 'standard'], "unknown param {} of two_stage_type".format(two_stage_type)
+        assert two_stage_type in [
+            'no', 'standard'], "unknown param {} of two_stage_type".format(two_stage_type)
         if two_stage_type != 'no':
             if two_stage_bbox_embed_share:
                 assert dec_pred_class_embed_share and dec_pred_bbox_embed_share
                 self.transformer.enc_out_bbox_embed = _bbox_embed
             else:
-                self.transformer.enc_out_bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
+                self.transformer.enc_out_bbox_embed = MLP(
+                    hidden_dim, hidden_dim, 4, 3)
                 prior_prob = 0.01
-                nn.init.constant(0)(self.transformer.enc_out_bbox_embed.layers[-1].weight) 
-                nn.init.constant(0)(self.transformer.enc_out_bbox_embed.layers[-1].bias)
-    
+                nn.init.constant(0)(
+                    self.transformer.enc_out_bbox_embed.layers[-1].weight)
+                nn.init.constant(0)(
+                    self.transformer.enc_out_bbox_embed.layers[-1].bias)
+
             if two_stage_class_embed_share:
                 assert dec_pred_class_embed_share and dec_pred_bbox_embed_share
                 self.transformer.enc_out_class_embed = _class_embed
             else:
-                self.transformer.enc_out_class_embed = nn.Linear(hidden_dim, num_classes)
-                self.transformer.enc_out_class_embed.bias = mx.ones(self.num_classes) * bias_value
-    
+                self.transformer.enc_out_class_embed = nn.Linear(
+                    hidden_dim, num_classes)
+                self.transformer.enc_out_class_embed.bias = mx.ones(
+                    self.num_classes) * bias_value
+
             self.refpoint_embed = None
             if self.two_stage_add_query_num > 0:
                 self.init_ref_points(two_stage_add_query_num)
@@ -202,14 +217,16 @@ class DINO(nn.Module):
         if self.random_refpoints_xy:
 
             nn.init.uniform()(self.refpoint_embed.weight[:, :2])
-            self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
+            self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(
+                self.refpoint_embed.weight.data[:, :2])
             self.refpoint_embed.freeze(recurse=False, keys="weight")
 
         if self.fix_refpoints_hw > 0:
             print("fix_refpoints_hw: {}".format(self.fix_refpoints_hw))
             assert self.random_refpoints_xy
             self.refpoint_embed.weight.data[:, 2:] = self.fix_refpoints_hw
-            self.refpoint_embed.weight.data[:, 2:] = inverse_sigmoid(self.refpoint_embed.weight.data[:, 2:])
+            self.refpoint_embed.weight.data[:, 2:] = inverse_sigmoid(
+                self.refpoint_embed.weight.data[:, 2:])
             self.refpoint_embed.freeze(recurse=False, keys="weight")
         elif int(self.fix_refpoints_hw) == -1:
             pass
@@ -218,13 +235,15 @@ class DINO(nn.Module):
             assert self.random_refpoints_xy
             self.refpoint_embed = nn.Embedding(use_num_queries, 2)
             nn.init.uniform()(self.refpoint_embed.weight[:, :2])
-            self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
+            self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(
+                self.refpoint_embed.weight.data[:, :2])
             self.refpoint_embed.freeze(recurse=False, keys="weight")
             self.hw_embed = nn.Embedding(1, 1)
         else:
-            raise NotImplementedError('Unknown fix_refpoints_hw {}'.format(self.fix_refpoints_hw))
+            raise NotImplementedError(
+                'Unknown fix_refpoints_hw {}'.format(self.fix_refpoints_hw))
 
-    def __call__(self, samples: Dict[str, mx.array], targets:List=None):
+    def __call__(self, samples: Dict[str, mx.array], targets: List = None):
         """ The forward expects a Dict[str, mx.array], which consists of:
                - samples['feature_map']: batched images, of shape [batch_size x 3 x H x W]
                - samples['mask']: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
@@ -262,14 +281,17 @@ class DINO(nn.Module):
                 interpolation = nn.Upsample(
                     scale_factor=(src.shape[1] / m.shape[1], src.shape[2] / m.shape[2]), mode="nearest"
                 )
-                mask = interpolation(m[..., None].astype(mx.float32)).astype(mx.bool_).squeeze(-1)
+                mask = interpolation(m[..., None].astype(
+                    mx.float32)).astype(mx.bool_).squeeze(-1)
                 array_dict_additional = {'feature_map': src, 'mask': mask}
-                pos_l = self.backbone.layers[1](array_dict_additional).astype(src.dtype)
+                pos_l = self.backbone.layers[1](
+                    array_dict_additional).astype(src.dtype)
                 srcs.append(src)
                 masks.append(mask)
                 poss.append(pos_l)
         if self.dn_number > 0 or targets is not None:
-            num_q = self.num_queries * self.num_patterns if self.num_patterns > 0 else self.num_queries
+            num_q = self.num_queries * \
+                self.num_patterns if self.num_patterns > 0 else self.num_queries
             input_query_label, input_query_bbox, attn_mask, dn_meta =\
                 self.dn_encoder(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
                                 training=self.training)
@@ -277,37 +299,42 @@ class DINO(nn.Module):
             assert targets is None
             input_query_bbox = input_query_label = attn_mask = dn_meta = None
 
-        hs, reference, hs_enc, ref_enc, init_box_proposal = self.transformer(srcs, masks, input_query_bbox, poss,input_query_label,attn_mask)
+        hs, reference, hs_enc, ref_enc, init_box_proposal = self.transformer(
+            srcs, masks, input_query_bbox, poss, input_query_label, attn_mask)
         # In case num object=0, we need to add a dummy object
-        hs[0] += self.label_enc.weight[0,0]*0.0
+        hs[0] += self.label_enc.weight[0, 0]*0.0
         # deformable-detr-like anchor update
         # reference_before_sigmoid = inverse_sigmoid(reference[:-1]) # n_dec, bs, nq, 4
         outputs_coord_list = []
         for dec_lid, (layer_ref_sig, layer_bbox_embed, layer_hs) in enumerate(zip(reference[:-1], self.bbox_embed, hs)):
             layer_delta_unsig = layer_bbox_embed(layer_hs)
-            layer_outputs_unsig = layer_delta_unsig  + inverse_sigmoid(layer_ref_sig)
+            layer_outputs_unsig = layer_delta_unsig + \
+                inverse_sigmoid(layer_ref_sig)
             layer_outputs_unsig = nn.sigmoid(layer_outputs_unsig)
             outputs_coord_list.append(layer_outputs_unsig)
-        outputs_coord_list = mx.stack(outputs_coord_list)        
+        outputs_coord_list = mx.stack(outputs_coord_list)
 
         outputs_class = mx.stack([layer_cls_embed(layer_hs) for
-                                     layer_cls_embed, layer_hs in zip(self.class_embed, hs)])
+                                  layer_cls_embed, layer_hs in zip(self.class_embed, hs)])
         if self.dn_number > 0 and dn_meta is not None:
             outputs_class, outputs_coord_list = \
                 dn_post_process(outputs_class, outputs_coord_list,
-                                dn_meta,self.aux_loss,self._set_aux_loss)
-        out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord_list[-1]}
+                                dn_meta, self.aux_loss, self._set_aux_loss)
+        out = {'pred_logits': outputs_class[-1],
+               'pred_boxes': outputs_coord_list[-1]}
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord_list)
-
+            out['aux_outputs'] = self._set_aux_loss(
+                outputs_class, outputs_coord_list)
 
         # for encoder output
         if hs_enc is not None:
             # prepare intermediate outputs
             interm_coord = ref_enc[-1]
             interm_class = self.transformer.enc_out_class_embed(hs_enc[-1])
-            out['interm_outputs'] = {'pred_logits': interm_class, 'pred_boxes': interm_coord}
-            out['interm_outputs_for_matching_pre'] = {'pred_logits': interm_class, 'pred_boxes': init_box_proposal}
+            out['interm_outputs'] = {
+                'pred_logits': interm_class, 'pred_boxes': interm_coord}
+            out['interm_outputs_for_matching_pre'] = {
+                'pred_logits': interm_class, 'pred_boxes': init_box_proposal}
 
             # prepare enc outputs
             if hs_enc.shape[0] > 1:
@@ -315,8 +342,10 @@ class DINO(nn.Module):
                 enc_outputs_class = []
                 for layer_id, (layer_box_embed, layer_class_embed, layer_hs_enc, layer_ref_enc) in enumerate(zip(self.enc_bbox_embed, self.enc_class_embed, hs_enc[:-1], ref_enc[:-1])):
                     layer_enc_delta_unsig = layer_box_embed(layer_hs_enc)
-                    layer_enc_outputs_coord_unsig = layer_enc_delta_unsig + inverse_sigmoid(layer_ref_enc)
-                    layer_enc_outputs_coord = nn.sigmoid(layer_enc_outputs_coord_unsig)
+                    layer_enc_outputs_coord_unsig = layer_enc_delta_unsig + \
+                        inverse_sigmoid(layer_ref_enc)
+                    layer_enc_outputs_coord = nn.sigmoid(
+                        layer_enc_outputs_coord_unsig)
                     layer_enc_outputs_class = layer_class_embed(layer_hs_enc)
                     enc_outputs_coord.append(layer_enc_outputs_coord)
                     enc_outputs_class.append(layer_enc_outputs_class)
@@ -343,16 +372,17 @@ class SetCriterion:
         1) we compute hungarian assignment between ground truth boxes and the outputs of the model
         2) we supervise each pair of matched ground-truth / prediction (supervise class and box)
     """
+
     def __init__(
-        self, 
-        num_classes, 
-        matcher, 
-        weight_dict, 
-        focal_alpha, 
-        losses, 
+        self,
+        num_classes,
+        matcher,
+        weight_dict,
+        focal_alpha,
+        losses,
         training=True,
-        pad_labels_to_n_max_ground_truths = False,
-        n_max_ground_truths = 500
+        pad_labels_to_n_max_ground_truths=False,
+        n_max_ground_truths=500
     ):
         """ Create the criterion.
         Parameters:
@@ -380,26 +410,28 @@ class SetCriterion:
         src_logits = outputs['pred_logits']
 
         idx = self._get_src_permutation_idx(indices)
-        target_classes_o = mx.concatenate([t["labels"][J] for t, (_, J) in zip(targets, indices)])
+        target_classes_o = mx.concatenate(
+            [t["labels"][J] for t, (_, J) in zip(targets, indices)])
         target_classes = mx.full(src_logits.shape[:2], self.num_classes,
-                                    dtype=mx.int16)
+                                 dtype=mx.int16)
         target_classes[idx] = target_classes_o
 
         target_classes_onehot = mx.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2]+1],
-                                            dtype=src_logits.dtype)
-        
-        bs, nq = target_classes.shape
-        target_classes_onehot[mx.arange(bs)[:, None, None], mx.arange(nq)[None, :, None], target_classes[:, :, None]] = 1
+                                         dtype=src_logits.dtype)
 
-        target_classes_onehot = target_classes_onehot[:,:,:-1]
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]
+        bs, nq = target_classes.shape
+        target_classes_onehot[mx.arange(bs)[:, None, None], mx.arange(
+            nq)[None, :, None], target_classes[:, :, None]] = 1
+
+        target_classes_onehot = target_classes_onehot[:, :, :-1]
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot,
+                                     num_boxes, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]
         losses = {'loss_ce': loss_ce}
 
         # if log:
         #     # TODO this should probably be a separate loss, not hacked in this one here
         #     losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o)[0]
         return losses
-
 
     def loss_cardinality(self, outputs, targets, indices, num_boxes):
         """ Compute the cardinality error, ie the absolute error in the number of predicted non-empty boxes
@@ -408,8 +440,10 @@ class SetCriterion:
         pred_logits = outputs['pred_logits']
         tgt_lengths = mx.array([v["num_objects"] for v in targets])
         # Count the number of predictions that are NOT "no-object" (which is the last class)
-        card_pred = (pred_logits.argmax(-1) != pred_logits.shape[-1] - 1).sum(1)
-        card_err = nn.losses.l1_loss(card_pred.astype(mx.float32), tgt_lengths.astype(mx.float32))
+        card_pred = (pred_logits.argmax(-1) !=
+                     pred_logits.shape[-1] - 1).sum(1)
+        card_err = nn.losses.l1_loss(card_pred.astype(
+            mx.float32), tgt_lengths.astype(mx.float32))
         losses = {'cardinality_error': card_err}
         return losses
 
@@ -421,9 +455,11 @@ class SetCriterion:
         assert 'pred_boxes' in outputs
         idx = self._get_src_permutation_idx(indices)
         src_boxes = outputs['pred_boxes'][idx]
-        target_boxes = mx.concatenate([t['boxes'][i] for t, (_, i) in zip(targets, indices)], axis=0)
+        target_boxes = mx.concatenate(
+            [t['boxes'][i] for t, (_, i) in zip(targets, indices)], axis=0)
 
-        loss_bbox = nn.losses.l1_loss(src_boxes, target_boxes, reduction='none')
+        loss_bbox = nn.losses.l1_loss(
+            src_boxes, target_boxes, reduction='none')
 
         losses = {}
         losses['loss_bbox'] = loss_bbox.sum() / num_boxes
@@ -440,19 +476,19 @@ class SetCriterion:
         losses['loss_xy'] = loss_bbox[..., :2].sum() / num_boxes
         losses['loss_hw'] = loss_bbox[..., 2:].sum() / num_boxes
 
-
         return losses
-
 
     def _get_src_permutation_idx(self, indices):
         # permute predictions following indices
-        batch_idx = mx.concatenate([mx.full(src.shape, i) for i, (src, _) in enumerate(indices)])
+        batch_idx = mx.concatenate([mx.full(src.shape, i)
+                                   for i, (src, _) in enumerate(indices)])
         src_idx = mx.concatenate([src for (src, _) in indices])
         return batch_idx, src_idx
 
     def _get_tgt_permutation_idx(self, indices):
         # permute targets following indices
-        batch_idx = mx.concatenate([mx.full(tgt.shape, i) for i, (_, tgt) in enumerate(indices)])
+        batch_idx = mx.concatenate([mx.full(tgt.shape, i)
+                                   for i, (_, tgt) in enumerate(indices)])
         tgt_idx = mx.concatenate([tgt for (_, tgt) in indices])
         return batch_idx, tgt_idx
 
@@ -471,11 +507,12 @@ class SetCriterion:
              outputs: dict of arrays, see the output specification of the model for the format
              targets: list of dicts, such that len(targets) == batch_size.
                       The expected keys in each dict depends on the losses applied, see each loss' doc
-            
+
              return_indices: used for vis. if True, the layer0-5 indices will be returned as well.
 
         """
-        outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
+        outputs_without_aux = {k: v for k,
+                               v in outputs.items() if k != 'aux_outputs'}
         indices = self.matcher(outputs_without_aux, targets)
 
         if return_indices:
@@ -494,15 +531,18 @@ class SetCriterion:
         dn_meta = outputs['dn_meta']
 
         if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
-            output_known_lbs_bboxes,single_pad, scalar = self.prep_for_dn(dn_meta)
+            output_known_lbs_bboxes, single_pad, scalar = self.prep_for_dn(
+                dn_meta)
             dn_pos_idx = []
             dn_neg_idx = []
             for i in range(len(targets)):
                 if targets[i]['num_objects'] > 0:
-                    t = mx.arange(targets[i]['num_objects'] - 1).astype(mx.int32)
+                    t = mx.arange(
+                        targets[i]['num_objects'] - 1).astype(mx.int32)
                     t = mx.tile(t[None, ...], (scalar, 1))
                     tgt_idx = t.flatten()
-                    output_idx = (mx.arange(scalar) * single_pad).astype(mx.int32)[..., None] + t
+                    output_idx = (mx.arange(scalar) *
+                                  single_pad).astype(mx.int32)[..., None] + t
                     output_idx = output_idx.flatten()
                 else:
                     output_idx = tgt_idx = mx.array([]).astype(mx.int64)
@@ -510,13 +550,14 @@ class SetCriterion:
                 dn_pos_idx.append((output_idx, tgt_idx))
                 dn_neg_idx.append((output_idx + single_pad // 2, tgt_idx))
 
-            output_known_lbs_bboxes=dn_meta['output_known_lbs_bboxes']
+            output_known_lbs_bboxes = dn_meta['output_known_lbs_bboxes']
             l_dict = {}
             for loss in self.losses:
                 kwargs = {}
                 if 'labels' in loss:
                     kwargs = {'log': False}
-                l_dict.update(self.get_loss(loss, output_known_lbs_bboxes, targets, dn_pos_idx, num_boxes*scalar,**kwargs))
+                l_dict.update(self.get_loss(
+                    loss, output_known_lbs_bboxes, targets, dn_pos_idx, num_boxes*scalar, **kwargs))
 
             l_dict = {k + f'_dn': v for k, v in l_dict.items()}
             losses.update(l_dict)
@@ -531,7 +572,8 @@ class SetCriterion:
             losses.update(l_dict)
 
         for loss in self.losses:
-            losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
+            losses.update(self.get_loss(
+                loss, outputs, targets, indices, num_boxes))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
@@ -544,28 +586,29 @@ class SetCriterion:
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
                         kwargs = {'log': False}
-                    l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
+                    l_dict = self.get_loss(
+                        loss, aux_outputs, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
 
                 if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
                     aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]
-                    l_dict={}
+                    l_dict = {}
                     for loss in self.losses:
                         kwargs = {}
                         if 'labels' in loss:
                             kwargs = {'log': False}
 
                         l_dict.update(self.get_loss(loss, aux_outputs_known, targets, dn_pos_idx, num_boxes*scalar,
-                                                                 **kwargs))
+                                                    **kwargs))
 
                     l_dict = {k + f'_dn_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
                 else:
                     l_dict = dict()
-                    l_dict['loss_bbox_dn']=mx.array(0.)
-                    l_dict['loss_giou_dn']=mx.array(0.)
-                    l_dict['loss_ce_dn']=mx.array(0.)
+                    l_dict['loss_bbox_dn'] = mx.array(0.)
+                    l_dict['loss_giou_dn'] = mx.array(0.)
+                    l_dict['loss_ce_dn'] = mx.array(0.)
                     l_dict['loss_xy_dn'] = mx.array(0.)
                     l_dict['loss_hw_dn'] = mx.array(0.)
                     l_dict['cardinality_error_dn'] = mx.array(0.)
@@ -583,7 +626,8 @@ class SetCriterion:
                 if loss == 'labels':
                     # Logging is enabled only for the last layer
                     kwargs = {'log': False}
-                l_dict = self.get_loss(loss, interm_outputs, targets, indices, num_boxes, **kwargs)
+                l_dict = self.get_loss(
+                    loss, interm_outputs, targets, indices, num_boxes, **kwargs)
                 l_dict = {k + f'_interm': v for k, v in l_dict.items()}
                 losses.update(l_dict)
 
@@ -598,7 +642,8 @@ class SetCriterion:
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
                         kwargs = {'log': False}
-                    l_dict = self.get_loss(loss, enc_outputs, targets, indices, num_boxes, **kwargs)
+                    l_dict = self.get_loss(
+                        loss, enc_outputs, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_enc_{i}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
 
@@ -608,17 +653,18 @@ class SetCriterion:
 
         return losses
 
-    def prep_for_dn(self,dn_meta):
+    def prep_for_dn(self, dn_meta):
         output_known_lbs_bboxes = dn_meta['output_known_lbs_bboxes']
-        num_dn_groups,pad_size=dn_meta['num_dn_group'],dn_meta['pad_size']
-        assert pad_size % num_dn_groups==0
-        single_pad=pad_size//num_dn_groups
+        num_dn_groups, pad_size = dn_meta['num_dn_group'], dn_meta['pad_size']
+        assert pad_size % num_dn_groups == 0
+        single_pad = pad_size//num_dn_groups
 
-        return output_known_lbs_bboxes,single_pad,num_dn_groups
+        return output_known_lbs_bboxes, single_pad, num_dn_groups
 
 
 class PostProcessor:
     """ This module converts the model's output into the format expected by the coco api"""
+
     def __init__(self, num_select=100, nms_iou_threshold=-1) -> None:
         super().__init__()
         self.num_select = num_select
@@ -640,8 +686,10 @@ class PostProcessor:
 
         prob = mx.sigmoid(out_logits)
         # topk_values = mx.topk(prob.reshape(out_logits.shape[0], -1), num_select, axis=1)
-        topk_indexes = mx.argpartition(prob.reshape(out_logits.shape[0], -1) * -1, num_select , axis=1)[:, :num_select] 
-        topk_values = prob[mx.arange(out_logits.shape[0])[:, None], topk_indexes]
+        topk_indexes = mx.argpartition(prob.reshape(
+            out_logits.shape[0], -1) * -1, num_select, axis=1)[:, :num_select]
+        topk_values = prob[mx.arange(out_logits.shape[0])[
+            :, None], topk_indexes]
         scores = topk_values
         topk_boxes = topk_indexes // out_logits.shape[2]
         labels = topk_indexes % out_logits.shape[2]
@@ -652,9 +700,10 @@ class PostProcessor:
             boxes = mx.clip(boxes, 0, 1)
         if test:
             assert not not_to_xyxy
-            boxes[:,:,2:] = boxes[:,:,2:] - boxes[:,:,:2]
-        boxes = boxes[mx.arange(topk_boxes.shape[0])[:, None, None], topk_boxes[:, :, None], mx.arange(4)[None, None, :]]
-        
+            boxes[:, :, 2:] = boxes[:, :, 2:] - boxes[:, :, :2]
+        boxes = boxes[mx.arange(topk_boxes.shape[0])[
+            :, None, None], topk_boxes[:, :, None], mx.arange(4)[None, None, :]]
+
         # and from relative [0, 1] to absolute [0, height] coordinates
         img_h, img_w = target_sizes[..., 0], target_sizes[..., 1]
         scale_fct = mx.stack([img_w, img_h, img_w, img_h], axis=1)
@@ -663,9 +712,10 @@ class PostProcessor:
         # if self.nms_iou_threshold > 0:
         #     item_indices = [nms(b, s, iou_threshold=self.nms_iou_threshold) for b,s in zip(boxes, scores)]
 
-            # results = [{'scores': s[i], 'labels': l[i], 'boxes': b[i]} for s, l, b, i in zip(scores, labels, boxes, item_indices)]
+        # results = [{'scores': s[i], 'labels': l[i], 'boxes': b[i]} for s, l, b, i in zip(scores, labels, boxes, item_indices)]
         # else:
-        results = [{'scores': s, 'labels': l, 'boxes': b} for s, l, b in zip(scores, labels, boxes)]
+        results = [{'scores': s, 'labels': l, 'boxes': b}
+                   for s, l, b in zip(scores, labels, boxes)]
 
         return results
 
@@ -732,33 +782,33 @@ def build_dino(args):
         two_stage_class_embed_share=args.two_stage_class_embed_share,
         decoder_sa_type=args.decoder_sa_type,
         num_patterns=args.num_patterns,
-        dn_number = args.dn_number if args.use_dn else 0,
-        dn_box_noise_scale = args.dn_box_noise_scale,
-        dn_label_noise_ratio = args.dn_label_noise_ratio,
-        dn_labelbook_size = dn_labelbook_size,
+        dn_number=args.dn_number if args.use_dn else 0,
+        dn_box_noise_scale=args.dn_box_noise_scale,
+        dn_label_noise_ratio=args.dn_label_noise_ratio,
+        dn_labelbook_size=dn_labelbook_size,
     )
     matcher = build_matcher(args)
 
     # prepare weight dict
-    weight_dict = {'loss_ce': args.cls_loss_coef, 'loss_bbox': args.bbox_loss_coef}
+    weight_dict = {'loss_ce': args.cls_loss_coef,
+                   'loss_bbox': args.bbox_loss_coef}
     weight_dict['loss_giou'] = args.giou_loss_coef
     clean_weight_dict_wo_dn = copy.deepcopy(weight_dict)
 
-    
     # for DN training
     if args.use_dn:
         weight_dict['loss_ce_dn'] = args.cls_loss_coef
         weight_dict['loss_bbox_dn'] = args.bbox_loss_coef
         weight_dict['loss_giou_dn'] = args.giou_loss_coef
 
-    
     clean_weight_dict = copy.deepcopy(weight_dict)
 
     # TODO this is a hack
     if args.aux_loss:
         aux_weight_dict = {}
         for i in range(args.dec_layers - 1):
-            aux_weight_dict.update({k + f'_{i}': v for k, v in clean_weight_dict.items()})
+            aux_weight_dict.update(
+                {k + f'_{i}': v for k, v in clean_weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
     if args.two_stage_type != 'no':
@@ -776,17 +826,18 @@ def build_dino(args):
             interm_loss_coef = args.interm_loss_coef
         except:
             interm_loss_coef = 1.0
-        interm_weight_dict.update({k + f'_interm': v * interm_loss_coef * _coeff_weight_dict[k] for k, v in clean_weight_dict_wo_dn.items()})
+        interm_weight_dict.update({k + f'_interm': v * interm_loss_coef *
+                                  _coeff_weight_dict[k] for k, v in clean_weight_dict_wo_dn.items()})
         weight_dict.update(interm_weight_dict)
 
     losses = ['labels', 'boxes', 'cardinality']
     criterion = SetCriterion(
         num_classes, matcher=matcher, weight_dict=weight_dict,
-        focal_alpha=args.focal_alpha, losses=losses, 
+        focal_alpha=args.focal_alpha, losses=losses,
         pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
         n_max_ground_truths=args.n_max_ground_truths
     )
-    postprocessors = {'bbox': PostProcessor(num_select=args.num_select, nms_iou_threshold=args.nms_iou_threshold)}
+    postprocessors = {'bbox': PostProcessor(
+        num_select=args.num_select, nms_iou_threshold=args.nms_iou_threshold)}
 
     return model, criterion, postprocessors
-

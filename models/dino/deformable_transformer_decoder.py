@@ -29,9 +29,9 @@ def inverse_sigmoid(x, eps=1e-3):
 
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, decoder_layer, num_layers, norm=None, 
-                 return_intermediate=False, 
-                 d_model=256, query_dim=4, 
+    def __init__(self, decoder_layer, num_layers, norm=None,
+                 return_intermediate=False,
+                 d_model=256, query_dim=4,
                  modulate_hw_attn=False,
                  num_feature_levels=1,
                  deformable_decoder=False,
@@ -47,18 +47,20 @@ class TransformerDecoder(nn.Module):
         del self.params['__class__']
         # Initialize decoder layers
         if num_layers > 0:
-            self.layers = _get_decoder_clones(decoder_layer, num_layers, layer_share=dec_layer_share)
+            self.layers = _get_decoder_clones(
+                decoder_layer, num_layers, layer_share=dec_layer_share)
         else:
             self.layers = []
-        
+
         self.num_layers = num_layers
         self.norm = norm
         self.return_intermediate = return_intermediate
         assert return_intermediate, "return_intermediate is required"
-        
+
         self.query_dim = query_dim
-        assert query_dim in [2, 4], f"query_dim should be 2 or 4, but got {query_dim}"
-        
+        assert query_dim in [
+            2, 4], f"query_dim should be 2 or 4, but got {query_dim}"
+
         self.num_feature_levels = num_feature_levels
         self.use_detached_boxes_dec_out = use_detached_boxes_dec_out
         self.d_model = d_model
@@ -66,8 +68,9 @@ class TransformerDecoder(nn.Module):
         self.deformable_decoder = deformable_decoder
 
         # Initialize query position head
-        self.ref_point_head = MLP(query_dim // 2 * d_model, d_model, d_model, 2)
-        
+        self.ref_point_head = MLP(
+            query_dim // 2 * d_model, d_model, d_model, 2)
+
         if not deformable_decoder:
             self.query_pos_sine_scale = MLP(d_model, d_model, d_model, 2)
         else:
@@ -76,8 +79,9 @@ class TransformerDecoder(nn.Module):
         if rm_dec_query_scale:
             self.query_scale = None
         else:
-            raise NotImplementedError("Query scaling has not been implemented.")
-        
+            raise NotImplementedError(
+                "Query scaling has not been implemented.")
+
         self.bbox_embed = None
         self.class_embed = None
         if not deformable_decoder and modulate_hw_attn:
@@ -92,7 +96,7 @@ class TransformerDecoder(nn.Module):
         if dec_layer_number is not None:
             assert isinstance(dec_layer_number, list)
             assert len(dec_layer_number) == num_layers
-            
+
         self.dec_layer_dropout_prob = dec_layer_dropout_prob
         if dec_layer_dropout_prob is not None:
             assert isinstance(dec_layer_dropout_prob, list)
@@ -103,15 +107,17 @@ class TransformerDecoder(nn.Module):
         self.rm_detach = None
 
     def __call__(self, tgt, memory,
-                tgt_mask: Optional[mx.array] = None,
-                memory_mask: Optional[mx.array] = None,
-                tgt_key_padding_mask: Optional[mx.array] = None,
-                memory_key_padding_mask: Optional[mx.array] = None,
-                pos: Optional[mx.array] = None,
-                refpoints_unsigmoid: Optional[mx.array] = None,  # num_queries, bs, 2
-                level_start_index: Optional[mx.array] = None,  # num_levels
-                spatial_shapes: Optional[mx.array] = None,  # bs, num_levels, 2
-                valid_ratios: Optional[mx.array] = None):
+                 tgt_mask: Optional[mx.array] = None,
+                 memory_mask: Optional[mx.array] = None,
+                 tgt_key_padding_mask: Optional[mx.array] = None,
+                 memory_key_padding_mask: Optional[mx.array] = None,
+                 pos: Optional[mx.array] = None,
+                 # num_queries, bs, 2
+                 refpoints_unsigmoid: Optional[mx.array] = None,
+                 level_start_index: Optional[mx.array] = None,  # num_levels
+                 # bs, num_levels, 2
+                 spatial_shapes: Optional[mx.array] = None,
+                 valid_ratios: Optional[mx.array] = None):
         """
         Input:
             - tgt: Target sequence, shape [nq, bs, d_model]
@@ -123,14 +129,16 @@ class TransformerDecoder(nn.Module):
         output = tgt
 
         intermediate = []
-        reference_points = mx.sigmoid(refpoints_unsigmoid)  # Apply sigmoid to reference points
+        # Apply sigmoid to reference points
+        reference_points = mx.sigmoid(refpoints_unsigmoid)
         ref_points = [reference_points]  # Store reference points
 
         # Process through decoder layers
         for layer_id, layer in enumerate(self.layers):
             # Preprocess reference points
             if self.training and self.decoder_query_perturber is not None and layer_id != 0:
-                reference_points = self.decoder_query_perturber(reference_points)
+                reference_points = self.decoder_query_perturber(
+                    reference_points)
 
             if self.deformable_decoder:
                 if reference_points.shape[-1] == 4:
@@ -138,23 +146,29 @@ class TransformerDecoder(nn.Module):
                         [valid_ratios, valid_ratios], axis=-1)[None, :]
                 else:
                     assert reference_points.shape[-1] == 2
-                    reference_points_input = reference_points[:, :, None] * valid_ratios[None, :]
-                query_sine_embed = gen_sineembed_for_position(reference_points_input[:, :, 0, :])
+                    reference_points_input = reference_points[:,
+                                                              :, None] * valid_ratios[None, :]
+                query_sine_embed = gen_sineembed_for_position(
+                    reference_points_input[:, :, 0, :])
             else:
                 query_sine_embed = gen_sineembed_for_position(reference_points)
                 reference_points_input = None
             # Conditional query
             raw_query_pos = self.ref_point_head(query_sine_embed)
-            pos_scale = self.query_scale(output) if self.query_scale is not None else 1
+            pos_scale = self.query_scale(
+                output) if self.query_scale is not None else 1
             query_pos = pos_scale * raw_query_pos
             if not self.deformable_decoder:
-                query_sine_embed = query_sine_embed[..., :self.d_model] * self.query_pos_sine_scale(output)
+                query_sine_embed = query_sine_embed[...,
+                                                    :self.d_model] * self.query_pos_sine_scale(output)
 
             # Modulated HW attentions
             if not self.deformable_decoder and self.modulate_hw_attn:
                 refHW_cond = mx.sigmoid(self.ref_anchor_head(output))
-                query_sine_embed[..., self.d_model // 2:] *= (refHW_cond[..., 0] / reference_points[..., 2])[..., None]
-                query_sine_embed[..., :self.d_model // 2] *= (refHW_cond[..., 1] / reference_points[..., 3])[..., None]
+                query_sine_embed[..., self.d_model // 2:] *= (
+                    refHW_cond[..., 0] / reference_points[..., 2])[..., None]
+                query_sine_embed[..., :self.d_model // 2] *= (
+                    refHW_cond[..., 1] / reference_points[..., 3])[..., None]
 
             # Dropout mechanism for some layers if required
             dropflag = False
@@ -162,7 +176,7 @@ class TransformerDecoder(nn.Module):
                 prob = random.random()
                 if prob < self.dec_layer_dropout_prob[layer_id]:
                     dropflag = True
-            
+
             if not dropflag:
                 output = layer(
                     tgt=output,
@@ -192,8 +206,10 @@ class TransformerDecoder(nn.Module):
                     select_number = self.dec_layer_number[layer_id + 1]
                     if nq_now != select_number:
                         class_unselected = self.class_embed[layer_id](output)
-                        topk_proposals = mx.argpartition(class_unselected.max(axis=-1) * -1, select_number , axis=0)[:topk, :] 
-                        new_reference_points = new_reference_points[topk_proposals[..., None], mx.arange(batch_size)[None, :, None], mx.arange(4)[None, None, :]]
+                        topk_proposals = mx.argpartition(class_unselected.max(
+                            axis=-1) * -1, select_number, axis=0)[:topk, :]
+                        new_reference_points = new_reference_points[topk_proposals[..., None], mx.arange(
+                            batch_size)[None, :, None], mx.arange(4)[None, None, :]]
 
                 if self.rm_detach and 'dec' in self.rm_detach:
                     reference_points = new_reference_points
@@ -208,7 +224,8 @@ class TransformerDecoder(nn.Module):
 
             if self.dec_layer_number is not None and layer_id != self.num_layers - 1:
                 if nq_now != select_number:
-                    output = output[topk_proposals[..., None], mx.arange(batch_size)[None, :, None], mx.arange(d_model)[None, None, :]]
+                    output = output[topk_proposals[..., None], mx.arange(
+                        batch_size)[None, :, None], mx.arange(d_model)[None, None, :]]
 
         return [
             [itm_out.transpose(1, 0, 2) for itm_out in intermediate],

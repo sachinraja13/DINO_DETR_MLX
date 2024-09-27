@@ -85,13 +85,14 @@ class PositionEmbeddingLearned(nn.Module):
             .repeat(x.shape[0], 1, 1, 1)
         )
         return pos
-    
+
+
 def build_position_encoding(args):
     N_steps = args.hidden_dim // 2
     if args.position_embedding in ('v2', 'sine'):
         # TODO find a better way of exposing other arguments
         position_embedding = PositionEmbeddingSine(
-            N_steps, 
+            N_steps,
             temperature=args.pe_temperature,
             normalize=True
         )

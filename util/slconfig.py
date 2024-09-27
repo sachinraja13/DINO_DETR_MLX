@@ -1,7 +1,8 @@
 # ==========================================================
 # Modified from mmcv
 # ==========================================================
-import os, sys
+import os
+import sys
 import os.path as osp
 import ast
 import tempfile
@@ -14,16 +15,19 @@ from addict import Dict
 from yapf.yapflib.yapf_api import FormatCode
 
 import platform
-MACOS, LINUX, WINDOWS = (platform.system() == x for x in ['Darwin', 'Linux', 'Windows'])  # environment booleans
+MACOS, LINUX, WINDOWS = (platform.system() == x for x in [
+                         'Darwin', 'Linux', 'Windows'])  # environment booleans
 
 BASE_KEY = '_base_'
 DELETE_KEY = '_delete_'
-RESERVED_KEYS = ['filename', 'text', 'pretty_text', 'get', 'dump', 'merge_from_dict']
+RESERVED_KEYS = ['filename', 'text', 'pretty_text',
+                 'get', 'dump', 'merge_from_dict']
 
 
 def check_file_exist(filename, msg_tmpl='file "{}" does not exist'):
     if not osp.isfile(filename):
         raise FileNotFoundError(msg_tmpl.format(filename))
+
 
 class ConfigDict(Dict):
 
@@ -124,7 +128,8 @@ class SLConfig(object):
             cfg_dict_list = list()
             cfg_text_list = list()
             for f in base_filename:
-                _cfg_dict, _cfg_text = SLConfig._file2dict(osp.join(cfg_dir, f))
+                _cfg_dict, _cfg_text = SLConfig._file2dict(
+                    osp.join(cfg_dir, f))
                 cfg_dict_list.append(_cfg_dict)
                 cfg_text_list.append(_cfg_text)
 
@@ -149,7 +154,7 @@ class SLConfig(object):
         """merge dict `a` into dict `b` (non-inplace).
             values in `a` will overwrite `b`.
             copy first to avoid inplace modification
-            
+
         Args:
             a ([type]): [description]
             b ([type]): [description]
@@ -164,7 +169,7 @@ class SLConfig(object):
         b = b.copy()
         for k, v in a.items():
             if isinstance(v, dict) and k in b and not v.pop(DELETE_KEY, False):
-            
+
                 if not isinstance(b[k], dict) and not isinstance(b[k], list):
                     # if :
 
@@ -183,16 +188,15 @@ class SLConfig(object):
                         f'index {k} should be an int when input but {type(k)}'
                     )
                 b[int(k)] = SLConfig._merge_a_into_b(v, b[int(k)])
-            else:   
+            else:
                 b[k] = v
-                
+
         return b
 
     @staticmethod
     def fromfile(filename):
         cfg_dict, cfg_text = SLConfig._file2dict(filename)
         return SLConfig(cfg_dict, cfg_text=cfg_text, filename=filename)
-
 
     def __init__(self, cfg_dict=None, cfg_text=None, filename=None):
         if cfg_dict is None:
@@ -214,7 +218,6 @@ class SLConfig(object):
         else:
             text = ''
         super(SLConfig, self).__setattr__('_text', text)
-
 
     @property
     def filename(self):
@@ -317,7 +320,6 @@ class SLConfig(object):
         text, _ = FormatCode(text, style_config=yapf_style)
 
         return text
-    
 
     def __repr__(self):
         return f'Config (path: {self.filename}): {self._cfg_dict.__repr__()}'
@@ -396,7 +398,6 @@ class SLConfig(object):
     # for multiprocess
     def __setstate__(self, state):
         self.__init__(state)
-
 
     def copy(self):
         return SLConfig(self._cfg_dict.copy())

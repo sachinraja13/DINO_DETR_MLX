@@ -9,6 +9,7 @@ import torch
 import pickle
 from pprint import pprint
 
+
 def get_keys_list(flattened_tree):
     param_keys = {}
     for i in range(len(flattened_tree)):
@@ -16,9 +17,10 @@ def get_keys_list(flattened_tree):
         param_keys[param_key] = None
     return param_keys
 
+
 def check_common_keys(mlx_flattened_model, pytorch_flattened_params):
     mlx_model_param_keys = get_keys_list(mlx_flattened_model)
-    pytorch_parameters_param_keys =  get_keys_list(pytorch_flattened_params)
+    pytorch_parameters_param_keys = get_keys_list(pytorch_flattened_params)
     common_keys = {}
     mlx_model_keys_not_in_saved_pytorch_params = {}
     torch_param_keys_not_in_mlx_model = {}
@@ -51,6 +53,7 @@ def generate_backbone_key_mapping(backbone_keys, key_mapping):
         key_mapping[original_key] = new_key
     return key_mapping
 
+
 def generate_input_proj_key_mapping(input_proj_keys, key_mapping):
     for original_key in input_proj_keys:
         key_tokens = original_key.split('.')
@@ -73,7 +76,7 @@ def generate_input_proj_key_mapping(input_proj_keys, key_mapping):
 
 
 def generate_key_mapping(flattened_tree):
-    module_groups = {'backbone' : [], 'input_proj' : []}
+    module_groups = {'backbone': [], 'input_proj': []}
     key_mapping = {}
     for i in range(len(flattened_tree)):
         weight_tuple = flattened_tree[i]
@@ -85,9 +88,12 @@ def generate_key_mapping(flattened_tree):
                 module_groups[module_type].append(weight_key_to_replace)
         if not key_type_found:
             key_mapping[weight_key_to_replace] = weight_key_to_replace
-    key_mapping = generate_backbone_key_mapping(module_groups['backbone'], key_mapping)
-    key_mapping = generate_input_proj_key_mapping(module_groups['input_proj'], key_mapping)
+    key_mapping = generate_backbone_key_mapping(
+        module_groups['backbone'], key_mapping)
+    key_mapping = generate_input_proj_key_mapping(
+        module_groups['input_proj'], key_mapping)
     return key_mapping
+
 
 def update_flattened_tree_keys(flattened_tree, key_mapping):
     replaced_flattened_tree = []
@@ -95,9 +101,10 @@ def update_flattened_tree_keys(flattened_tree, key_mapping):
         weight_tuple = flattened_tree[i]
         weight_key = weight_tuple[0]
         weight_value = weight_tuple[1]
-        mapped_weight_key = key_mapping[weight_key]     
+        mapped_weight_key = key_mapping[weight_key]
         replaced_flattened_tree.append((mapped_weight_key, weight_value))
     return replaced_flattened_tree
+
 
 def handle_in_proj_weight(name, param):
     l = param.shape[0]
@@ -112,11 +119,12 @@ def handle_in_proj_weight(name, param):
     k_name = k_name.replace("in_proj_weight", "key_proj.weight")
     v_name = v_name.replace("in_proj_weight", "value_proj.weight")
     out_dict = {
-        q_name : q,
-        k_name : k,
-        v_name : v
+        q_name: q,
+        k_name: k,
+        v_name: v
     }
     return out_dict
+
 
 def handle_in_proj_bias(name, param):
     l = param.shape[0]
@@ -131,19 +139,22 @@ def handle_in_proj_bias(name, param):
     k_name = k_name.replace("in_proj_bias", "key_proj.bias")
     v_name = v_name.replace("in_proj_bias", "value_proj.bias")
     out_dict = {
-        q_name : q,
-        k_name : k,
-        v_name : v
+        q_name: q,
+        k_name: k,
+        v_name: v
     }
     return out_dict
+
 
 def load_mlx_model_with_pytorch_weights(
     mlx_model,
     pytorch_weights_path,
     logger=None
 ):
-    pytorch_weights_flattened = torch.load(pytorch_weights_path,map_location=torch.device('cpu'))
-    pytorch_weights_flattened = tree_flatten(pytorch_weights_flattened['model'])
+    pytorch_weights_flattened = torch.load(
+        pytorch_weights_path, map_location=torch.device('cpu'))
+    pytorch_weights_flattened = tree_flatten(
+        pytorch_weights_flattened['model'])
 
     processed_pytorch_params = []
     conv_layers = []
@@ -152,7 +163,8 @@ def load_mlx_model_with_pytorch_weights(
         if 'in_proj_weight' in k:
             in_proj_weight_dict = handle_in_proj_weight(k, v)
             for key in in_proj_weight_dict:
-                processed_pytorch_params.append((key, in_proj_weight_dict[key]))
+                processed_pytorch_params.append(
+                    (key, in_proj_weight_dict[key]))
             continue
         if 'in_proj_bias' in k:
             in_proj_bias_dict = handle_in_proj_bias(k, v)
@@ -171,14 +183,18 @@ def load_mlx_model_with_pytorch_weights(
     key_mapping = generate_key_mapping(processed_pytorch_params)
     if logger is not None:
         logger.info("key_mapping:" + str(key_mapping))
-    processed_mapped_flattened_tree_torch = update_flattened_tree_keys(processed_pytorch_params, key_mapping)
-    common_keys, model_keys_not_in_saved_params, param_keys_not_in_model = check_common_keys(tree_flatten(mlx_model), processed_mapped_flattened_tree_torch)
+    processed_mapped_flattened_tree_torch = update_flattened_tree_keys(
+        processed_pytorch_params, key_mapping)
+    common_keys, model_keys_not_in_saved_params, param_keys_not_in_model = check_common_keys(
+        tree_flatten(mlx_model), processed_mapped_flattened_tree_torch)
     if logger is not None:
-        logger.info("common_keys:" + str( list(common_keys.keys())))
+        logger.info("common_keys:" + str(list(common_keys.keys())))
     if logger is not None:
-        logger.info("model_keys_not_in_saved_params:" + str(list(model_keys_not_in_saved_params.keys())))
+        logger.info("model_keys_not_in_saved_params:" +
+                    str(list(model_keys_not_in_saved_params.keys())))
     if logger is not None:
-        logger.info("param_keys_not_in_model:" + str(list(param_keys_not_in_model.keys())))
+        logger.info("param_keys_not_in_model:" +
+                    str(list(param_keys_not_in_model.keys())))
 
     mapped_weights_tree = tree_unflatten(processed_mapped_flattened_tree_torch)
     pre_weights = {
@@ -198,5 +214,6 @@ def load_mlx_model_with_pytorch_weights(
                 continue
             if np.linalg.norm(v - post_weights[k]) < 0.01:
                 if logger is not None:
-                    logger.info("Weight: " + str(k) + " very close to the original value ")
+                    logger.info("Weight: " + str(k) +
+                                " very close to the original value ")
     return mlx_model

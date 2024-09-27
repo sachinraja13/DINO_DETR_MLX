@@ -9,7 +9,6 @@ from pycocotools.coco import COCO
 import pycocotools.mask as mask_util
 
 
-
 class CocoEvaluator(object):
     def __init__(self, coco_gt, iou_types, useCats=True):
         assert isinstance(iou_types, (list, tuple))
@@ -36,7 +35,8 @@ class CocoEvaluator(object):
             # suppress pycocotools prints
             with open(os.devnull, 'w') as devnull:
                 with contextlib.redirect_stdout(devnull):
-                    coco_dt = COCO.loadRes(self.coco_gt, results) if results else COCO()
+                    coco_dt = COCO.loadRes(
+                        self.coco_gt, results) if results else COCO()
             coco_eval = self.coco_eval[iou_type]
 
             coco_eval.cocoDt = coco_dt
@@ -48,8 +48,10 @@ class CocoEvaluator(object):
 
     def synchronize_between_processes(self):
         for iou_type in self.iou_types:
-            self.eval_imgs[iou_type] = np.concatenate(self.eval_imgs[iou_type], 2)
-            create_common_coco_eval(self.coco_eval[iou_type], self.img_ids, self.eval_imgs[iou_type])
+            self.eval_imgs[iou_type] = np.concatenate(
+                self.eval_imgs[iou_type], 2)
+            create_common_coco_eval(
+                self.coco_eval[iou_type], self.img_ids, self.eval_imgs[iou_type])
 
     def accumulate(self):
         for coco_eval in self.coco_eval.values():
@@ -87,7 +89,6 @@ class CocoEvaluator(object):
             else:
                 labels = prediction["labels"]
 
-        
             try:
                 coco_results.extend(
                     [
@@ -101,7 +102,8 @@ class CocoEvaluator(object):
                     ]
                 )
             except:
-                import ipdb; ipdb.set_trace()
+                import ipdb
+                ipdb.set_trace()
         return coco_results
 
     def prepare_for_coco_segmentation(self, predictions):
@@ -120,7 +122,8 @@ class CocoEvaluator(object):
             labels = prediction["labels"].tolist()
 
             rles = [
-                mask_util.encode(np.array(mask[0, :, :, np.newaxis], dtype=np.uint8, order="F"))[0]
+                mask_util.encode(
+                    np.array(mask[0, :, :, np.newaxis], dtype=np.uint8, order="F"))[0]
                 for mask in masks
             ]
             for rle in rles:
@@ -167,7 +170,8 @@ class CocoEvaluator(object):
 
 
 def convert_to_xywh(boxes):
-    xmin, ymin, xmax, ymax = boxes[..., 0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
+    xmin, ymin, xmax, ymax = boxes[...,
+                                   0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
     return mx.array((xmin, ymin, xmax - xmin, ymax - ymin), dim=1)
 
 
@@ -247,7 +251,8 @@ def evaluate(self):
         for imgId in p.imgIds
     ]
     # this is NOT in the pycocotools code, but could be done outside
-    evalImgs = np.asarray(evalImgs).reshape(len(catIds), len(p.areaRng), len(p.imgIds))
+    evalImgs = np.asarray(evalImgs).reshape(
+        len(catIds), len(p.areaRng), len(p.imgIds))
     self._paramsEval = copy.deepcopy(self.params)
 
     return p.imgIds, evalImgs

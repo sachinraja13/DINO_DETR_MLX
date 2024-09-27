@@ -30,7 +30,8 @@ def plot_logs(logs, fields=('class_error', 'loss_bbox_unscaled', 'mAP'), ewm_col
     if not isinstance(logs, list):
         if isinstance(logs, PurePath):
             logs = [logs]
-            print(f"{func_name} info: logs param expects a list argument, converted to list[Path].")
+            print(
+                f"{func_name} info: logs param expects a list argument, converted to list[Path].")
         else:
             raise ValueError(f"{func_name} - invalid argument for logs parameter.\n \
             Expect list[Path] or single Path obj, received {type(logs)}")
@@ -38,13 +39,16 @@ def plot_logs(logs, fields=('class_error', 'loss_bbox_unscaled', 'mAP'), ewm_col
     # Quality checks - verify valid dir(s), that every item in list is Path object, and that log_name exists in each dir
     for i, dir in enumerate(logs):
         if not isinstance(dir, PurePath):
-            raise ValueError(f"{func_name} - non-Path object in logs argument of {type(dir)}: \n{dir}")
+            raise ValueError(
+                f"{func_name} - non-Path object in logs argument of {type(dir)}: \n{dir}")
         if not dir.exists():
-            raise ValueError(f"{func_name} - invalid directory in logs argument:\n{dir}")
+            raise ValueError(
+                f"{func_name} - invalid directory in logs argument:\n{dir}")
         # verify log_name exists
         fn = Path(dir / log_name)
         if not fn.exists():
-            print(f"-> missing {log_name}.  Have you gotten to Epoch 1 in training?")
+            print(
+                f"-> missing {log_name}.  Have you gotten to Epoch 1 in training?")
             print(f"--> full path of missing log file: {fn}")
             return
 
@@ -76,6 +80,7 @@ def plot_logs(logs, fields=('class_error', 'loss_bbox_unscaled', 'mAP'), ewm_col
             ax.set_title(field)
 
     return fig, axs
+
 
 def plot_precision_recall(files, naming_scheme='iter'):
     if naming_scheme == 'exp_id':
