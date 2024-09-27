@@ -16,21 +16,23 @@ import util.misc as utils
 from datasets.coco_eval import CocoEvaluator
 
 
-
-
 def train_one_epoch(model: nn.Module, criterion,
                     data_loader: Iterable, optimizer: optim.Optimizer, epoch: int, max_norm: float = 0, 
-                    wo_class_error=False, args=None, logger=None, print_freq=100):
+                    wo_class_error=False, args=None, logger=None, print_freq=100,
+                    compile_forward=False, compile_backward=False):
     
     model.train()
     state = [model.state, optimizer.state, mx.random.state]
     mx.eval(state)
-    
     def loss_fn(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
-        if need_tgt_for_training:
-            outputs = model(array_dict, targets)
+        if compile_forward and not compile_backward:
+            model_forward = mx.compile(model, inputs=state, outputs=state)
         else:
-            outputs = model(array_dict)
+            model_forward = model
+        if need_tgt_for_training:
+            outputs = model_forward(array_dict, targets)
+        else:
+            outputs = model_forward(array_dict)
         loss_dict = criterion.forward(outputs, targets)
         weight_dict = criterion.weight_dict
         loss = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
@@ -38,13 +40,15 @@ def train_one_epoch(model: nn.Module, criterion,
             return loss, loss_dict, outputs
         return loss, loss_dict
     
-    @partial(mx.compile, inputs=state, outputs=state)
     def step(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
         train_step_fn = nn.value_and_grad(model, loss_fn)
         (loss_value, loss_dict), grads = train_step_fn(samples, targets, need_tgt_for_training, return_outputs=False)
         grads, total_norm = optim.clip_grad_norm(grads, max_norm=max_norm)
         optimizer.update(model, grads)
         return loss_value, loss_dict
+    
+    if compile_forward and compile_backward:
+        step = mx.compile(step, inputs=state, outputs=state)
     
     try:
         need_tgt_for_training = args.use_dn

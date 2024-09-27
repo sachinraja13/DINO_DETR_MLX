@@ -1,10 +1,12 @@
 _base_ = ['coco_transformer.py']
 
-compile_computation_graph = False
+compile_computation_graph = True
+compile_forward = True
+compile_backward = False # Will not help if compile_backward=True and compile_forward=False
 device = 'gpu' # 'gpu' or 'cpu'
 precision = 'full'
 
-load_pytorch_weights = True
+load_pytorch_weights = False
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 
 dataset_file = 'synthetic'
@@ -15,9 +17,9 @@ num_classes_synthetic_dataset = 91
 min_targets_per_image = 50
 max_targets_per_image = 200
 
-pad_all_images_to_same_size = False
+pad_all_images_to_same_size = True
 image_array_fixed_size = [1024, 1024, 3]
-pad_labels_to_n_max_ground_truths = False
+pad_labels_to_n_max_ground_truths = True
 n_max_ground_truths = 500
 
 use_custom_dataloader = False
