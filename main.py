@@ -205,7 +205,11 @@ def main(args):
         epoch_start_time = time.time()
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer, epoch,
-            args.clip_max_norm, wo_class_error=wo_class_error, args=args, logger=(logger if args.save_log else None), print_freq=args.print_freq)
+            args.clip_max_norm, wo_class_error=wo_class_error, args=args, 
+            logger=(logger if args.save_log else None), 
+            print_freq=args.print_freq, 
+            compile_forward=args.compile_forward,
+            compile_backward = args.compile_backward)
         if args.output_dir:
             checkpoint_paths = [Path(output_dir / 'checkpoint')]
 
