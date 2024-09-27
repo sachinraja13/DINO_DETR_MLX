@@ -25,15 +25,21 @@ def train_one_epoch(model: nn.Module, criterion,
     state = [model.state, optimizer.state, mx.random.state]
     mx.eval(state)
 
+    def model_forward_pass(array_dict, targets, need_tgt_for_training=False):
+        if need_tgt_for_training:
+            outputs = model(array_dict, targets)
+        else:
+            outputs = model(array_dict)
+        return outputs
+
     def loss_fn(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
         if compile_forward and not compile_backward:
-            model_forward = mx.compile(model, inputs=state, outputs=state)
+            forward_pass = mx.compile(
+                model_forward_pass, inputs=state, outputs=state)
         else:
-            model_forward = model
-        if need_tgt_for_training:
-            outputs = model_forward(array_dict, targets)
-        else:
-            outputs = model_forward(array_dict)
+            forward_pass = model_forward_pass
+        outputs = forward_pass(array_dict, targets, need_tgt_for_training)
+        mx.eval(outputs)
         loss_dict = criterion.forward(outputs, targets)
         weight_dict = criterion.weight_dict
         loss = sum(loss_dict[k] * weight_dict[k]
