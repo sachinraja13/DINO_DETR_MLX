@@ -91,6 +91,9 @@ class DINO(nn.Module):
         self.dn_box_noise_scale = dn_box_noise_scale
         self.dn_label_noise_ratio = dn_label_noise_ratio
         self.dn_labelbook_size = dn_labelbook_size
+        self.use_dn = False
+        if self.dn_number > 0:
+            self.use_dn = True
 
         # prepare input projection layers
         if num_feature_levels > 1:
@@ -378,8 +381,9 @@ class SetCriterion:
         num_classes,
         matcher,
         weight_dict,
-        focal_alpha,
         losses,
+        focal_alpha,
+        use_dn,
         training=True,
         pad_labels_to_n_max_ground_truths=False,
         n_max_ground_truths=500
@@ -398,6 +402,7 @@ class SetCriterion:
         self.weight_dict = weight_dict
         self.losses = losses
         self.focal_alpha = focal_alpha
+        self.use_dn = use_dn
         self.training = training
         self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
         self.n_max_ground_truths = n_max_ground_truths
@@ -559,17 +564,19 @@ class SetCriterion:
                 l_dict.update(self.get_loss(
                     loss, output_known_lbs_bboxes, targets, dn_pos_idx, num_boxes*scalar, **kwargs))
 
-            l_dict = {k + f'_dn': v for k, v in l_dict.items()}
-            losses.update(l_dict)
+            if self.use_dn:
+                l_dict = {k + f'_dn': v for k, v in l_dict.items()}
+                losses.update(l_dict)
         else:
-            l_dict = dict()
-            l_dict['loss_bbox_dn'] = mx.array(0.)
-            l_dict['loss_giou_dn'] = mx.array(0.)
-            l_dict['loss_ce_dn'] = mx.array(0.)
-            l_dict['loss_xy_dn'] = mx.array(0.)
-            l_dict['loss_hw_dn'] = mx.array(0.)
-            l_dict['cardinality_error_dn'] = mx.array(0.)
-            losses.update(l_dict)
+            if self.use_dn:
+                l_dict = dict()
+                l_dict['loss_bbox_dn'] = mx.array(0.)
+                l_dict['loss_giou_dn'] = mx.array(0.)
+                l_dict['loss_ce_dn'] = mx.array(0.)
+                l_dict['loss_xy_dn'] = mx.array(0.)
+                l_dict['loss_hw_dn'] = mx.array(0.)
+                l_dict['cardinality_error_dn'] = mx.array(0.)
+                losses.update(l_dict)
 
         for loss in self.losses:
             losses.update(self.get_loss(
@@ -601,19 +608,21 @@ class SetCriterion:
 
                         l_dict.update(self.get_loss(loss, aux_outputs_known, targets, dn_pos_idx, num_boxes*scalar,
                                                     **kwargs))
-
-                    l_dict = {k + f'_dn_{idx}': v for k, v in l_dict.items()}
-                    losses.update(l_dict)
+                    if self.use_dn:
+                        l_dict = {k + f'_dn_{idx}': v for k,
+                                  v in l_dict.items()}
+                        losses.update(l_dict)
                 else:
-                    l_dict = dict()
-                    l_dict['loss_bbox_dn'] = mx.array(0.)
-                    l_dict['loss_giou_dn'] = mx.array(0.)
-                    l_dict['loss_ce_dn'] = mx.array(0.)
-                    l_dict['loss_xy_dn'] = mx.array(0.)
-                    l_dict['loss_hw_dn'] = mx.array(0.)
-                    l_dict['cardinality_error_dn'] = mx.array(0.)
-                    l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
-                    losses.update(l_dict)
+                    if self.use_dn:
+                        l_dict = dict()
+                        l_dict['loss_bbox_dn'] = mx.array(0.)
+                        l_dict['loss_giou_dn'] = mx.array(0.)
+                        l_dict['loss_ce_dn'] = mx.array(0.)
+                        l_dict['loss_xy_dn'] = mx.array(0.)
+                        l_dict['loss_hw_dn'] = mx.array(0.)
+                        l_dict['cardinality_error_dn'] = mx.array(0.)
+                        l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
+                        losses.update(l_dict)
 
         # interm_outputs loss
         if 'interm_outputs' in outputs:
@@ -832,8 +841,8 @@ def build_dino(args):
 
     losses = ['labels', 'boxes', 'cardinality']
     criterion = SetCriterion(
-        num_classes, matcher=matcher, weight_dict=weight_dict,
-        focal_alpha=args.focal_alpha, losses=losses,
+        num_classes, matcher=matcher, weight_dict=weight_dict, losses=losses,
+        focal_alpha=args.focal_alpha, use_dn=args.use_dn, training=True,
         pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
         n_max_ground_truths=args.n_max_ground_truths
     )

@@ -25,7 +25,7 @@ def train_one_epoch(model: nn.Module, criterion,
     state = [model.state, optimizer.state, mx.random.state]
     mx.eval(state)
 
-    def model_forward_pass(array_dict, targets, need_tgt_for_training=False):
+    def forward_pass(array_dict, targets, need_tgt_for_training=False):
         if need_tgt_for_training:
             outputs = model(array_dict, targets)
         else:
@@ -33,11 +33,6 @@ def train_one_epoch(model: nn.Module, criterion,
         return outputs
 
     def loss_fn(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
-        if compile_forward and not compile_backward:
-            forward_pass = mx.compile(
-                model_forward_pass, inputs=state, outputs=state)
-        else:
-            forward_pass = model_forward_pass
         outputs = forward_pass(array_dict, targets, need_tgt_for_training)
         mx.eval(outputs)
         loss_dict = criterion.forward(outputs, targets)
@@ -56,7 +51,14 @@ def train_one_epoch(model: nn.Module, criterion,
         optimizer.update(model, grads)
         return loss_value, loss_dict
 
-    if compile_forward and compile_backward:
+    if compile_forward and not compile_backward:
+        if logger is not None:
+            logger.info("Compiling forward pass")
+        forward_pass = mx.compile(
+            forward_pass, inputs=state, outputs=state)
+    elif compile_forward and compile_backward:
+        if logger is not None:
+            logger.info("Compiling forward and backward passes")
         step = mx.compile(step, inputs=state, outputs=state)
 
     try:

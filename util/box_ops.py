@@ -58,8 +58,8 @@ def generalized_box_iou(boxes1, boxes2):
     Returns a [N, M] pairwise matrix, where N = len(boxes1)
     and M = len(boxes2)
     """
-    # assert (boxes1[..., 2:] >= boxes1[..., :2]).all()
-    # assert (boxes2[..., 2:] >= boxes2[..., :2]).all()
+    assert (boxes1[..., 2:] >= boxes1[..., :2]).all()
+    assert (boxes2[..., 2:] >= boxes2[..., :2]).all()
     iou, union = box_iou(boxes1, boxes2)
 
     lt = mx.minimum(boxes1[..., None, :2], boxes2[..., :2])
@@ -97,8 +97,8 @@ def generalized_box_iou_pairwise(boxes1, boxes2):
     Output:
         - giou: N, 4
     """
-    # assert (boxes1[:, 2:] >= boxes1[:, :2]).all()
-    # assert (boxes2[:, 2:] >= boxes2[:, :2]).all()
+    assert (boxes1[:, 2:] >= boxes1[:, :2]).all()
+    assert (boxes2[:, 2:] >= boxes2[:, :2]).all()
     assert boxes1.shape == boxes2.shape
 
     iou, union = box_iou_pairwise(boxes1, boxes2)  # N, 4
