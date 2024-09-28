@@ -7,7 +7,7 @@ import numpy as np
 from pathlib import Path
 import torch
 import pickle
-from pprint import pprint
+import pprint
 
 
 def get_keys_list(flattened_tree):
@@ -182,19 +182,20 @@ def load_mlx_model_with_pytorch_weights(
     processed_flattened_tree_torch = tree_unflatten(processed_pytorch_params)
     key_mapping = generate_key_mapping(processed_pytorch_params)
     if logger is not None:
-        logger.info("key_mapping:" + str(key_mapping))
+        logger.info("key_mapping:" + pprint.pformat(key_mapping, indent=4))
     processed_mapped_flattened_tree_torch = update_flattened_tree_keys(
         processed_pytorch_params, key_mapping)
     common_keys, model_keys_not_in_saved_params, param_keys_not_in_model = check_common_keys(
         tree_flatten(mlx_model), processed_mapped_flattened_tree_torch)
     if logger is not None:
-        logger.info("common_keys:" + str(list(common_keys.keys())))
+        logger.info("common_keys:" +
+                    pprint.pformat(list(common_keys.keys()), indent=4))
     if logger is not None:
-        logger.info("model_keys_not_in_saved_params:" +
-                    str(list(model_keys_not_in_saved_params.keys())))
+        logger.info(
+            "model_keys_not_in_saved_params:" + pprint.pformat(list(model_keys_not_in_saved_params.keys()), indent=4))
     if logger is not None:
-        logger.info("param_keys_not_in_model:" +
-                    str(list(param_keys_not_in_model.keys())))
+        logger.info(
+            "param_keys_not_in_model:" + pprint.pformat(list(param_keys_not_in_model.keys()), indent=4))
 
     mapped_weights_tree = tree_unflatten(processed_mapped_flattened_tree_torch)
     pre_weights = {
