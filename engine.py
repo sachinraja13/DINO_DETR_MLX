@@ -18,7 +18,7 @@ from datasets.coco_eval import CocoEvaluator
 
 def train_one_epoch(model: nn.Module, criterion,
                     data_loader: Iterable, optimizer: optim.Optimizer, epoch: int, max_norm: float = 0,
-                    wo_class_error=False, args=None, logger=None, print_freq=100,
+                    wo_class_error=False, args=None, logger=None, print_freq=10, print_loss_dict_freq=100,
                     compile_forward=False, compile_backward=False):
 
     model.train()
@@ -75,7 +75,7 @@ def train_one_epoch(model: nn.Module, criterion,
     header = 'Epoch: [{}]'.format(epoch)
 
     _cnt = 0
-    for samples, targets in metric_logger.log_every(data_loader, print_freq, header, logger=logger):
+    for samples, targets in metric_logger.log_every(data_loader, print_freq, print_loss_dict_freq, header, logger=logger):
         loss_value, loss_dict = step(
             samples, targets, need_tgt_for_training, return_outputs=False)
         mx.eval(state)

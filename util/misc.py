@@ -20,6 +20,8 @@ import mlx.core as mx
 import mlx.nn as nn
 import colorsys
 from .pytorch_weights_to_mlx import load_mlx_model_with_pytorch_weights
+import pprint
+
 pad_all_images_to_same_size = False
 image_array_fixed_size = [1024, 1024, 3]
 
@@ -31,7 +33,7 @@ class SmoothedValue(object):
 
     def __init__(self, window_size=20, fmt=None):
         if fmt is None:
-            fmt = "{median:.4f} ({global_avg:.4f})"
+            fmt = "Med: {median:.4f}, Avg: {avg:.4f}, Max: {max:.4f} (G Avg: {global_avg:.4f})"
         self.deque = deque(maxlen=window_size)
         self.total = 0.0
         self.count = 0
@@ -76,9 +78,10 @@ class SmoothedValue(object):
 
 
 class MetricLogger(object):
-    def __init__(self, delimiter="\t"):
+    def __init__(self, delimiter=None):
         self.meters = defaultdict(SmoothedValue)
         self.delimiter = delimiter
+        self.pformat = pprint.pformat
 
     def update(self, **kwargs):
         for k, v in kwargs.items():
@@ -96,25 +99,29 @@ class MetricLogger(object):
             type(self).__name__, attr))
 
     def __str__(self):
-        loss_str = []
+        print_dict = {}
         for name, meter in self.meters.items():
-            # print(name, str(meter))
-            # import ipdb;ipdb.set_trace()
             if meter.count > 0:
-                loss_str.append(
-                    "{}: {}".format(name, str(meter))
-                )
-        return self.delimiter.join(loss_str)
+                print_dict[name] = str(meter)
+        return self.pformat(print_dict, indent=4)
+
+    def get_basic_str(self, basic_keys=['loss', 'learning_rate']):
+        print_dict = {}
+        for key in basic_keys:
+            if key in self.meters:
+                print_dict[key] = str(self.meters[key])
+        return self.pformat(print_dict, indent=4)
 
     def add_meter(self, name, meter):
         self.meters[name] = meter
 
-    def log_every(self, iterable, print_freq, header=None, logger=None):
+    def log_every(self, iterable, print_freq, print_loss_dict_freq=None, header=None, logger=None):
         if logger is None:
             print_func = print
         else:
             print_func = logger.info
-
+        if print_loss_dict_freq is None:
+            print_loss_dict_freq = print_freq
         i = 0
         if not header:
             header = ''
@@ -137,12 +144,19 @@ class MetricLogger(object):
             yield obj
 
             iter_time.update(time.time() - end)
-            if i % print_freq == 0 or i == len(iterable) - 1:
+            if i % print_loss_dict_freq == 0 or i == len(iterable) - 1:
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 print_func(log_msg.format(
                     i, len(iterable), eta=eta_string,
                     meters=str(self),
+                    time=str(iter_time), data=str(data_time)))
+            elif i % print_freq == 0:
+                eta_seconds = iter_time.global_avg * (len(iterable) - i)
+                eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
+                print_func(log_msg.format(
+                    i, len(iterable), eta=eta_string,
+                    meters=self.get_basic_str(),
                     time=str(iter_time), data=str(data_time)))
             i += 1
             end = time.time()

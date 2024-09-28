@@ -223,6 +223,7 @@ def main(args):
             args.clip_max_norm, wo_class_error=wo_class_error, args=args,
             logger=(logger if args.save_log else None),
             print_freq=args.print_freq,
+            print_loss_dict_freq=args.print_loss_dict_freq,
             compile_forward=args.compile_forward,
             compile_backward=args.compile_backward)
         if args.output_dir:
