@@ -20,7 +20,7 @@ from util.logger import setup_logger
 from util.slconfig import DictAction, SLConfig
 from util.utils import BestMetricHolder
 import util.misc as utils
-
+import pickle
 import datasets
 from datasets import build_dataset, get_coco_api_from_dataset
 from engine import evaluate, train_one_epoch, test
@@ -235,7 +235,6 @@ def main(args):
             if (epoch + 1) % args.lr_drop == 0 or (epoch + 1) % args.save_checkpoint_interval == 0:
                 checkpoint_paths.append(
                     Path(output_dir / f'checkpoint{epoch:04}'))
-            checkpoint_dict
             for checkpoint_path in checkpoint_paths:
                 path_dict = utils.get_state_path_dict(checkpoint_path)
                 state_dict = utils.get_state_dict(
@@ -287,10 +286,12 @@ def main(args):
                 if "bbox" in coco_evaluator.coco_eval:
                     filenames = ['latest.pth']
                     if epoch % 50 == 0:
-                        filenames.append(f'{epoch:03}.pth')
-                    # for name in filenames:
-                    #     torch.save(coco_evaluator.coco_eval["bbox"].eval,
-                    #                output_dir / "eval" / name)
+                        filenames.append(f'{epoch:03}.p')
+                    for name in filenames:
+                        with open(filename, 'wb') as f:
+                            pickle.dump(
+                                coco_evaluator.coco_eval["bbox"].eval, f)
+
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
