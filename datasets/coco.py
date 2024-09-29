@@ -22,6 +22,7 @@ import mlx.core as mx
 from .data_util import preparing_dataset
 import datasets.transforms as T
 from torchvision.ops.boxes import box_area
+import numpy as np
 
 
 def box_cxcywh_to_xyxy(x):
@@ -379,7 +380,7 @@ class CocoDetection(torchvision.datasets.CocoDetection):
         super(CocoDetection, self).__init__(img_folder, ann_file)
         self._transforms = transforms
         self.prepare = ConvertCocoPolysToMask(
-            return_mask, pad_labels_to_n_max_ground_truths, n_max_ground_truths)
+            return_masks, pad_labels_to_n_max_ground_truths, n_max_ground_truths)
         self.aux_target_hacks = aux_target_hacks
         self.precision = precision
         self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
@@ -699,15 +700,15 @@ def get_aux_target_hacks_list(image_set, args):
 
 
 def build(image_set, args):
-    root = Path(args.coco_path)
+    root = args.coco_path
     year = args.coco_year
     mode = 'instances'
     PATHS = {
-        "train": (root / "train" + year, root / "annotations" / f'{mode}_train' + year + '.json'),
-        "train_reg": (root / "train" + year, root / "annotations" / f'{mode}_train' + year + '.json'),
-        "val": (root / "val" + year, root / "annotations" / f'{mode}_val' + year + '.json'),
-        "eval_debug": (root / "val" + year, root / "annotations" / f'{mode}_val' + year + '.json'),
-        "test": (root / "test" + year, root / "annotations" / 'image_info_test-dev' + year + '.json'),
+        "train": (Path(root + "/train" + year), Path(root + "/annotations" + f'/{mode}_train' + year + '.json')),
+        "train_reg": (Path(root + "/train" + year), Path(root + "/annotations" + f'/{mode}_train' + year + '.json')),
+        "val": (Path(root + "/val" + year), Path(root + "/annotations" + f'/{mode}_val' + year + '.json')),
+        "eval_debug": (Path(root + "/val" + year), Path(root + "/annotations" + f'/{mode}_val' + year + '.json')),
+        "test": (Path(root + "/test" + year), Path(root + "/annotations" + '/image_info_test-dev' + year + '.json')),
     }
 
     # add some hooks to datasets
