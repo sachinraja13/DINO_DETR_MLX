@@ -100,7 +100,9 @@ def train_one_epoch(model: nn.Module, criterion,
     return resstat
 
 
-def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir, wo_class_error=False, args=None, logger=None):
+def evaluate(model, criterion, postprocessors, data_loader,
+             base_ds, output_dir, wo_class_error=False, args=None,
+             logger=None, print_freq=10, print_loss_dict_freq=45000, max_iterations=10):
     model.eval()
     state = [model.state, mx.random.state]
     mx.eval(state)
@@ -128,7 +130,11 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir,
             window_size=1, fmt='{value:.2f}'))
     header = 'Test:'
 
-    iou_types = tuple(k for k in ('bbox') if k in postprocessors.keys())
+    all_iou_types = ['bbox']
+    iou_types = []
+    for k in postprocessors.keys():
+        if k in all_iou_types:
+            iou_types.append(k)
     useCats = True
     try:
         useCats = args.useCats
@@ -141,10 +147,10 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir,
 
     _cnt = 0
     output_state_dict = {}  # for debug only
-    for samples, targets in metric_logger.log_every(data_loader, 10, header, logger=logger):
+    for samples, targets in metric_logger.log_every(data_loader, print_freq, print_loss_dict_freq, header, logger=logger):
 
         loss_value, loss_dict, outputs = loss_fn(
-            samples, targets, need_tgt_for_training, return_outputs=False)
+            samples, targets, need_tgt_for_training, return_outputs=True)
         weight_dict = criterion.weight_dict
         mx.eval(model)
         metric_logger.update(loss=loss_value, **loss_dict)
@@ -208,6 +214,8 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir,
             #     break
 
         _cnt += 1
+        if _cnt > max_iterations:
+            break
         if args.debug:
             if _cnt % 15 == 0:
                 print("BREAK!"*5)
@@ -219,7 +227,7 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, output_dir,
         # output_state_dict['gt_info'] = mx.concatenate(output_state_dict['gt_info'])
         # output_state_dict['res_info'] = mx.concatenate(output_state_dict['res_info'])
         savepath = osp.join(
-            args.output_dir, 'results-{}.pkl'.format(utils.get_rank()))
+            args.output_dir, 'results.pkl')
         print("Saving res to {}".format(savepath))
         import pickle
         with open(savepath, 'wb') as f:

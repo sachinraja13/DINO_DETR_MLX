@@ -88,7 +88,6 @@ class CocoEvaluator(object):
                 labels = prediction["labels"].tolist()
             else:
                 labels = prediction["labels"]
-
             try:
                 coco_results.extend(
                     [
@@ -172,7 +171,8 @@ class CocoEvaluator(object):
 def convert_to_xywh(boxes):
     xmin, ymin, xmax, ymax = boxes[...,
                                    0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
-    return mx.array((xmin, ymin, xmax - xmin, ymax - ymin), dim=1)
+    xywh_boxes = mx.stack([xmin, ymin, xmax - xmin, ymax - ymin], axis=-1)
+    return xywh_boxes
 
 
 def merge(img_ids, eval_imgs):
