@@ -281,6 +281,10 @@ def get_state_path_dict(checkpoint_path):
         'optimizer_state': 'optimizer_state.safetensors',
         'args': 'args.json'
     }
+    try:
+        os.makedirs(str(checkpoint_path))
+    except:
+        print("Unable to create checkpoint directory: ", str(checkpoint_path))
     path_dict = {}
     for k in save_type_dict:
         path_dict[k] = str(checkpoint_path / save_type_dict[k])
@@ -288,42 +292,43 @@ def get_state_path_dict(checkpoint_path):
 
 
 def load_complete_state(path_dict):
-    model = None
+    model_weights = None
     optimizer_state = None
     args = None
-    assert 'model' in path_dict and 'model' in state_dict, "model key not found while saving"
-    assert 'optimizer_state' in path_dict and 'optimizer_state' in state_dict, "model key not found while saving"
-    assert 'args' in path_dict and 'args' in state_dict, "model key not found while saving"
+    print(path_dict)
+    assert 'model' in path_dict, "model key not found while saving"
+    assert 'optimizer_state' in path_dict, "optimizer_state key not found while saving"
+    assert 'args' in path_dict, "args key not found while saving"
     try:
         with open(path_dict['args'], 'r') as f:
             args = json.load(f)
     except:
         print("Unable to load arguments namespace")
     try:
-        model = mx.load(path_dict['model'])
+        model_weights = mx.load(path_dict['model'])
     except:
-        print("Unable to load MLX model")
+        print("Unable to load MLX model weights")
     try:
         optimizer_state = tree_unflatten(
             list(mx.load(path_dict['optimizer_state']).items()))
     except:
         print("Unable to load MLX optimizer state")
-    return model, optimizer_state, args
+    return model_weights, optimizer_state, args
 
 
 def save_complete_state(path_dict, state_dict):
     assert 'model' in path_dict and 'model' in state_dict, "model key not found while saving"
-    assert 'optimizer_state' in path_dict and 'optimizer_state' in state_dict, "model key not found while saving"
-    assert 'args' in path_dict and 'args' in state_dict, "model key not found while saving"
+    assert 'optimizer_state' in path_dict and 'optimizer_state' in state_dict, "optimizer_state key not found while saving"
+    assert 'args' in path_dict and 'args' in state_dict, "args key not found while saving"
     try:
-        with open(path_dict['args'], 'w') as f:
+        with open(path_dict['args'], 'w+') as f:
             json.dump(vars(state_dict['args']), f)
     except:
         print("Unable to save arguments namespace")
-    try:
-        state_dict['model'].save(path_dict['model'])
-    except:
-        print("Unable to save MLX model")
+    # try:
+    state_dict['model'].save_weights(path_dict['model'])
+    # except:
+    #     print("Unable to save MLX model")
     try:
         state = tree_flatten(state_dict['optimizer_state'])
         mx.save_safetensors(path_dict['optimizer_state'], dict(state))

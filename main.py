@@ -175,24 +175,52 @@ def main(args):
         base_ds = get_coco_api_from_dataset(dataset_val)
     else:
         base_ds = None
+    args.base_ds = base_ds
 
     if args.frozen_weights is not None:
-        model, optimizer_state, args_json = utils.load_complete_state(
-            args.frozen_weights)
+        frozen_checkpoint_path = Path(os.path.join(
+            args.output_dir, args.frozen_weights))
+        model_weights, optimizer_state, args_json = utils.load_complete_state(
+            utils.get_state_path_dict(frozen_checkpoint_path))
+        model.update(model_weights)
         model_without_ddp = model
-
-    output_dir = Path(args.output_dir)
-    if os.path.exists(os.path.join(args.output_dir, 'checkpoint')):
-        args.resume = os.path.join(args.output_dir, 'checkpoint')
-    if args.resume:
-        model, optimizer_state, args = utils.load_complete_state(
-            args.frozen_weights)
-        model_without_ddp = model
-
+        logger.info("Loaded model weights from {}".format(
+            str(frozen_checkpoint_path)))
         if not args.eval:
             optimizer.state = optimizer_state
-            args.start_epoch = args_json['last_epoch'] + 1
+            logger.info("Loaded optimizer state from {}".format(
+                str(frozen_checkpoint_path)))
+            last_epoch = args_json['last_epoch']
+            logger.info(
+                "Last epoch {}".format(last_epoch))
 
+    output_dir = Path(args.output_dir)
+
+    if args.resume and len(args.resume) > 0:
+        args.resume_checkpoint = args.resume
+
+    args.resume_checkpoint_complete_path = None
+
+    if args.resume_checkpoint and os.path.exists(os.path.join(args.output_dir, args.resume_checkpoint)):
+        args.resume_checkpoint_complete_path = os.path.join(
+            args.output_dir, args.resume_checkpoint)
+    if args.resume_checkpoint_complete_path:
+        checkpoint_path = Path(args.resume_checkpoint_complete_path)
+        model_weights, optimizer_state, args_json = utils.load_complete_state(
+            utils.get_state_path_dict(checkpoint_path))
+        model.update(model_weights)
+        model_without_ddp = model
+        logger.info("Loaded model weights from {}".format(
+            str(checkpoint_path)))
+        if not args.eval:
+            optimizer.state = optimizer_state
+            logger.info("Loaded optimizer state from {}".format(
+                str(checkpoint_path)))
+            args.start_epoch = args_json['last_epoch'] + 1
+            logger.info(
+                "Starting training from epoch {}".format(args.start_epoch))
+
+    coco_evaluator = None
     if args.eval and args.base_ds is not None:
         os.environ['EVAL_FLAG'] = 'TRUE'
         test_stats, coco_evaluator = evaluate(model, criterion, postprocessors,
@@ -212,12 +240,15 @@ def main(args):
     start_time = time.time()
     best_map_holder = BestMetricHolder()
     for epoch in range(args.start_epoch, args.epochs):
+
         if args.use_custom_dataloader and args.reinstantiate_dataloader_every_epoch:
             data_loader_train = CustomDataLoader(
                 dataset_train, args.batch_size, shuffle=True, collate_fn=utils.collate_fn)
             data_loader_val = CustomDataLoader(
                 dataset_val, 1, shuffle=False, collate_fn=utils.collate_fn)
+
         epoch_start_time = time.time()
+
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer, epoch,
             args.clip_max_norm, wo_class_error=wo_class_error, args=args,
@@ -226,20 +257,23 @@ def main(args):
             print_loss_dict_freq=args.print_loss_dict_freq,
             compile_forward=args.compile_forward,
             compile_backward=args.compile_backward)
+
         if args.output_dir:
             checkpoint_paths = [Path(output_dir / 'checkpoint')]
 
         if args.output_dir:
             checkpoint_paths = [Path(output_dir / 'checkpoint')]
             # extra checkpoint before LR drop and every 100 epochs
-            if (epoch + 1) % args.lr_drop == 0 or (epoch + 1) % args.save_checkpoint_interval == 0:
+            if (epoch + 1) % args.lr_drop_epochs == 0 or (epoch + 1) % args.save_checkpoint_interval == 0:
                 checkpoint_paths.append(
                     Path(output_dir / f'checkpoint{epoch:04}'))
             for checkpoint_path in checkpoint_paths:
                 path_dict = utils.get_state_path_dict(checkpoint_path)
                 state_dict = utils.get_state_dict(
-                    model, optimizer, epoch, args)
+                    model, optimizer, args, epoch)
                 utils.save_complete_state(path_dict, state_dict)
+                logger.info(f"Saved checkpoint: {str(path_dict)}")
+
         # eval
         if args.base_ds is not None:
             test_stats, coco_evaluator = evaluate(
@@ -253,15 +287,15 @@ def main(args):
                 checkpoint_path = Path(output_dir / 'checkpoint_best_regular')
                 path_dict = utils.get_state_path_dict(checkpoint_path)
                 state_dict = utils.get_state_dict(
-                    model, optimizer, epoch, args)
+                    model, optimizer, args, epoch)
                 utils.save_complete_state(path_dict, state_dict)
             log_stats = {
                 **{f'train_{k}': v for k, v in train_stats.items()},
                 **{f'test_{k}': v for k, v in test_stats.items()},
             }
-
             log_stats.update(best_map_holder.summary())
-
+        else:
+            log_stats = {}
         ep_paras = {
             'epoch': epoch,
             'n_parameters': n_parameters
@@ -284,7 +318,7 @@ def main(args):
             if coco_evaluator is not None:
                 (output_dir / 'eval').mkdir(exist_ok=True)
                 if "bbox" in coco_evaluator.coco_eval:
-                    filenames = ['latest.pth']
+                    filenames = ['latest.p']
                     if epoch % 50 == 0:
                         filenames.append(f'{epoch:03}.p')
                     for name in filenames:
@@ -297,7 +331,7 @@ def main(args):
     print('Training time {}'.format(total_time_str))
 
     # remove the copied files.
-    copyfilelist = vars(args).get('copyfilelist')
+    copyfilelist = vars(args).get('copyfilelist', None)
     if copyfilelist:
         from datasets.data_util import remove
         for filename in copyfilelist:

@@ -2,3 +2,5 @@ __pycache__
 logs/
 .DS_Store
 __pycache__
+pytorch_weights/torch_model.pth
+pytorch_weights/

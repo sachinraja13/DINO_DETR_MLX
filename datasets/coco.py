@@ -703,11 +703,11 @@ def build(image_set, args):
     year = args.coco_year
     mode = 'instances'
     PATHS = {
-        "train": (root / "train" + year, root / "annotations" / f'{mode}_train2014.json'),
-        "train_reg": (root / "train" + year, root / "annotations" / f'{mode}_train2014.json'),
-        "val": (root / "val" + year, root / "annotations" / f'{mode}_val2014.json'),
-        "eval_debug": (root / "val" + year, root / "annotations" / f'{mode}_val2014.json'),
-        "test": (root / "test" + year, root / "annotations" / 'image_info_test-dev2014.json'),
+        "train": (root / "train" + year, root / "annotations" / f'{mode}_train' + year + '.json'),
+        "train_reg": (root / "train" + year, root / "annotations" / f'{mode}_train' + year + '.json'),
+        "val": (root / "val" + year, root / "annotations" / f'{mode}_val' + year + '.json'),
+        "eval_debug": (root / "val" + year, root / "annotations" / f'{mode}_val' + year + '.json'),
+        "test": (root / "test" + year, root / "annotations" / 'image_info_test-dev' + year + '.json'),
     }
 
     # add some hooks to datasets
