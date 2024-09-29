@@ -191,7 +191,7 @@ class DeformableTransformer(nn.Module):
             if self.two_stage_pat_embed > 0:
                 self.pat_embed_for_2stage = nn.Embedding(
                     self.two_stage_pat_embed, d_model)
-                self.pat_embed_for_2stage = nn.init.normal()(self.pat_embed_for_2stage.weight)
+                nn.init.normal()(self.pat_embed_for_2stage.weight)
             if two_stage_add_query_num > 0:
                 self.tgt_embed = nn.Embedding(
                     self.two_stage_add_query_num, d_model)
