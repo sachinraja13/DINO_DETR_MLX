@@ -110,6 +110,8 @@ DINO: DETR with Improved DeNoising Anchor Boxes for End-to-End Object Detection.
 Hao Zhang and Feng Li and Shilong Liu and Lei Zhang and Hang Su and Jun Zhu and Lionel M. Ni and Heung-Yeung Shum
 arXiv 2203.03605
 
+Thanks to [mimm](https://github.com/robertmccraith/mimm/tree/main) for resnet port to MLX.
+
 If you find this work useful, please cite this repository and the original authors of DINO DETR as follows:
 
 ```
