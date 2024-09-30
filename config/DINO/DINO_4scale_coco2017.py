@@ -42,6 +42,8 @@ lr_drop_list = [33, 45]
 print_freq = 10
 print_loss_dict_freq = 100
 
+max_eval_iterations = None
+
 modelname = 'dino'
 frozen_weights = None
 backbone = 'resnet50'

@@ -224,13 +224,20 @@ def main(args):
     if args.eval and args.base_ds is not None:
         os.environ['EVAL_FLAG'] = 'TRUE'
         test_stats, coco_evaluator = evaluate(model, criterion, postprocessors,
-                                              data_loader_val, base_ds, args.output_dir, wo_class_error=wo_class_error, args=args)
+                                              data_loader_val, base_ds, args.output_dir,
+                                              wo_class_error=wo_class_error, args=args, logger=logger,
+                                              print_freq=args.print_freq, print_loss_dict_freq=args.print_loss_dict_freq,
+                                              max_iterations=args.max_eval_iterations)
         if args.output_dir:
-            utils.save_on_master(
-                coco_evaluator.coco_eval["bbox"].eval, output_dir / "eval.pth")
+            savepath = os.path.join(
+                args.output_dir, 'eval.pkl')
+            logger.info("Saving res to {}".format(savepath))
+            import pickle
+            with open(savepath, 'wb') as f:
+                pickle.dump(coco_evaluator.coco_eval["bbox"].eval, f)
 
         log_stats = {**{f'test_{k}': v for k, v in test_stats.items()}}
-        if args.output_dir and utils.is_main_process():
+        if args.output_dir:
             with (output_dir / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
 

@@ -77,7 +77,6 @@ class CocoEvaluator(object):
         for original_id, prediction in predictions.items():
             if len(prediction) == 0:
                 continue
-
             boxes = prediction["boxes"]
             boxes = convert_to_xywh(boxes).tolist()
             if not isinstance(prediction["scores"], list):
@@ -241,7 +240,6 @@ def evaluate(self):
         (imgId, catId): computeIoU(imgId, catId)
         for imgId in p.imgIds
         for catId in catIds}
-
     evaluateImg = self.evaluateImg
     maxDet = p.maxDets[-1]
     evalImgs = [
@@ -250,9 +248,9 @@ def evaluate(self):
         for areaRng in p.areaRng
         for imgId in p.imgIds
     ]
+    self.evalImgs = evalImgs
     # this is NOT in the pycocotools code, but could be done outside
     evalImgs = np.asarray(evalImgs).reshape(
         len(catIds), len(p.areaRng), len(p.imgIds))
     self._paramsEval = copy.deepcopy(self.params)
-
     return p.imgIds, evalImgs

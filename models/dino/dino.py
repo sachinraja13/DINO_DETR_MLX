@@ -697,6 +697,7 @@ class PostProcessor:
         # topk_values = mx.topk(prob.reshape(out_logits.shape[0], -1), num_select, axis=1)
         topk_indexes = mx.argpartition(prob.reshape(
             out_logits.shape[0], -1) * -1, num_select, axis=1)[:, :num_select]
+        prob = prob.reshape(out_logits.shape[0], -1)
         topk_values = prob[mx.arange(out_logits.shape[0])[
             :, None], topk_indexes]
         scores = topk_values

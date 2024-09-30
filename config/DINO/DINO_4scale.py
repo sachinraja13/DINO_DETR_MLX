@@ -11,8 +11,8 @@ load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
-dataset_file = 'synthetic'
-coco_year = '2017'
+dataset_file = 'coco'
+coco_year = '2014'
 num_classes = 91
 num_samples_synthetic_dataset = 1000
 num_classes_synthetic_dataset = 91
@@ -40,7 +40,9 @@ clip_max_norm = 0.1
 lr_drop_list = [33, 45]
 
 print_freq = 10
-print_loss_dict_freq = 100
+print_loss_dict_freq = 500
+
+max_eval_iterations = None
 
 modelname = 'dino'
 frozen_weights = None

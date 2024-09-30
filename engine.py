@@ -102,7 +102,7 @@ def train_one_epoch(model: nn.Module, criterion,
 
 def evaluate(model, criterion, postprocessors, data_loader,
              base_ds, output_dir, wo_class_error=False, args=None,
-             logger=None, print_freq=10, print_loss_dict_freq=45000, max_iterations=10):
+             logger=None, print_freq=10, print_loss_dict_freq=100, max_iterations=None):
     model.eval()
     state = [model.state, mx.random.state]
     mx.eval(state)
@@ -214,8 +214,9 @@ def evaluate(model, criterion, postprocessors, data_loader,
             #     break
 
         _cnt += 1
-        if _cnt > max_iterations:
-            break
+        if max_iterations is not None and _cnt > max_iterations:
+            logger.info(
+                "Breaking after {} iterations - check max_eval_iterations flag in config file.".format(str(max_iterations)))
         if args.debug:
             if _cnt % 15 == 0:
                 print("BREAK!"*5)
