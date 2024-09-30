@@ -136,10 +136,7 @@ def evaluate(model, criterion, postprocessors, data_loader,
             logger.info("Compiling forward pass and loss computation")
         loss_fn = mx.compile(loss_fn, inputs=state, outputs=state)
 
-    try:
-        need_tgt_for_training = args.use_dn
-    except:
-        need_tgt_for_training = False
+    need_tgt_for_training = False
 
     metric_logger = utils.MetricLogger(delimiter="  ")
     if not wo_class_error:
