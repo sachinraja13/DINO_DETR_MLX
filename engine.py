@@ -102,16 +102,22 @@ def train_one_epoch(model: nn.Module, criterion,
 
 def evaluate(model, criterion, postprocessors, data_loader,
              base_ds, output_dir, wo_class_error=False, args=None,
-             logger=None, print_freq=10, print_loss_dict_freq=100, max_iterations=None):
+             logger=None, print_freq=10, print_loss_dict_freq=100, max_iterations=None,
+             compile_forward=False, compile_loss_computation=False):
     model.eval()
     state = [model.state, mx.random.state]
     mx.eval(state)
 
-    def loss_fn(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
+    def forward_pass(array_dict, targets, need_tgt_for_training=False):
         if need_tgt_for_training:
             outputs = model(array_dict, targets)
         else:
             outputs = model(array_dict)
+        return outputs
+
+    def loss_fn(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
+        outputs = forward_pass(array_dict, targets, need_tgt_for_training)
+        mx.eval(outputs)
         loss_dict = criterion.forward(outputs, targets)
         weight_dict = criterion.weight_dict
         loss = sum(loss_dict[k] * weight_dict[k]
@@ -119,6 +125,17 @@ def evaluate(model, criterion, postprocessors, data_loader,
         if return_outputs:
             return loss, loss_dict, outputs
         return loss, loss_dict
+
+    if compile_forward and not compile_loss_computation:
+        if logger is not None:
+            logger.info("Compiling forward pass")
+        forward_pass = mx.compile(
+            forward_pass, inputs=state, outputs=state)
+    elif compile_forward and compile_loss_computation:
+        if logger is not None:
+            logger.info("Compiling forward pass and loss computation")
+        loss_fn = mx.compile(loss_fn, inputs=state, outputs=state)
+
     try:
         need_tgt_for_training = args.use_dn
     except:
@@ -128,7 +145,7 @@ def evaluate(model, criterion, postprocessors, data_loader,
     if not wo_class_error:
         metric_logger.add_meter('class_error', utils.SmoothedValue(
             window_size=1, fmt='{value:.2f}'))
-    header = 'Test:'
+    header = 'Evaluate:'
 
     all_iou_types = ['bbox']
     iou_types = []
@@ -217,6 +234,7 @@ def evaluate(model, criterion, postprocessors, data_loader,
         if max_iterations is not None and _cnt > max_iterations:
             logger.info(
                 "Breaking after {} iterations - check max_eval_iterations flag in config file.".format(str(max_iterations)))
+            break
         if args.debug:
             if _cnt % 15 == 0:
                 print("BREAK!"*5)

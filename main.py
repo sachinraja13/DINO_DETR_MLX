@@ -227,7 +227,8 @@ def main(args):
                                               data_loader_val, base_ds, args.output_dir,
                                               wo_class_error=wo_class_error, args=args, logger=logger,
                                               print_freq=args.print_freq, print_loss_dict_freq=args.print_loss_dict_freq,
-                                              max_iterations=args.max_eval_iterations)
+                                              max_iterations=args.max_eval_iterations,
+                                              compile_forward=args.compile_forward, compile_loss_computation=args.compile_backward)
         if args.output_dir:
             savepath = os.path.join(
                 args.output_dir, 'eval.pkl')
