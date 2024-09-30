@@ -43,7 +43,7 @@ class CocoEvaluator(object):
             coco_eval.params.imgIds = list(img_ids)
             coco_eval.params.useCats = self.useCats
             # img_ids, eval_imgs = evaluate(coco_eval)
-            img_ids = evaluate(coco_eval)
+            evaluate(coco_eval)
             # self.eval_imgs[iou_type].append(eval_imgs)
 
     def synchronize_between_processes(self):
@@ -254,4 +254,4 @@ def evaluate(self):
     #     len(catIds), len(p.areaRng), len(p.imgIds))
     self._paramsEval = copy.deepcopy(self.params)
     # return p.imgIds, evalImgs
-    return p.imgIds
+    return
