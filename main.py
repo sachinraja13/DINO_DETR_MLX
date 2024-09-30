@@ -121,6 +121,11 @@ def main(args):
 
     # build model
     model, criterion, postprocessors = build_model_main(args)
+
+    if args.eval:
+        args.pad_all_images_to_same_size = False
+        args.pad_labels_to_n_max_ground_truths = False
+
     if not args.compile_computation_graph:
         mx.disable_compile()
     if args.device == 'cpu':

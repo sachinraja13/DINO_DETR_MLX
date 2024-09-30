@@ -1,7 +1,7 @@
 _base_ = ['coco_transformer.py']
 
-compile_computation_graph = True
-compile_forward = True
+compile_computation_graph = False
+compile_forward = False
 # Will not help if compile_backward=True and compile_forward=False
 compile_backward = False
 device = 'gpu'  # 'gpu' or 'cpu'
@@ -12,16 +12,16 @@ pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
 dataset_file = 'coco'
-coco_year = '2014'
+coco_year = '2017'
 num_classes = 91
 num_samples_synthetic_dataset = 1000
 num_classes_synthetic_dataset = 91
 min_targets_per_image = 50
 max_targets_per_image = 200
 
-pad_all_images_to_same_size = True
+pad_all_images_to_same_size = True  # Always set to False for evaluation
 image_array_fixed_size = [1024, 1024, 3]
-pad_labels_to_n_max_ground_truths = True
+pad_labels_to_n_max_ground_truths = True  # Always set to False for evaluation
 n_max_ground_truths = 500
 
 use_custom_dataloader = False
@@ -40,7 +40,7 @@ clip_max_norm = 0.1
 lr_drop_list = [33, 45]
 
 print_freq = 10
-print_loss_dict_freq = 500
+print_loss_dict_freq = 5000
 
 max_eval_iterations = None
 
@@ -118,7 +118,7 @@ dec_pred_bbox_embed_share = True
 dec_pred_class_embed_share = True
 
 # for dn
-use_dn = True
+use_dn = False
 dn_number = 100
 dn_box_noise_scale = 0.4
 dn_label_noise_ratio = 0.5
