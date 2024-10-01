@@ -427,7 +427,7 @@ def build_matcher(args):
     elif args.matcher_type == 'SimpleMinsumMatcher':
         return SimpleMinsumMatcher(
             cost_class=args.set_cost_class, cost_bbox=args.set_cost_bbox, cost_giou=args.set_cost_giou,
-            focal_alpha=args.focal_alpha, gamma=args.focal_cost_gamma,
+            focal_alpha=args.focal_alpha,
             pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
             n_max_ground_truths=args.n_max_ground_truths
         )
