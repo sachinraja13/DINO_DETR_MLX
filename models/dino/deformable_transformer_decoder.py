@@ -8,7 +8,7 @@ import random
 import mlx.core as mx
 import mlx.nn as nn
 from .deformable_transformer_decoder_layer import DeformableTransformerDecoderLayer
-from .utils import gen_encoder_output_proposals, MLP, _get_activation_fn, gen_sineembed_for_position
+from ..utils import gen_encoder_output_proposals, MLP, _get_activation_fn, gen_sineembed_for_position
 
 
 def _get_decoder_clones(module, N, layer_share=False):

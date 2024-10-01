@@ -11,7 +11,7 @@ from .deformable_attn import *
 from .deformable_transformer_decoder import *
 from .deformable_transformer_encoder import *
 from util.misc import inverse_sigmoid
-from .utils import gen_encoder_output_proposals, MLP, _get_activation_fn, gen_sineembed_for_position
+from ..utils import gen_encoder_output_proposals, MLP, _get_activation_fn, gen_sineembed_for_position
 
 # ------------------------------------------------------------------------
 # DINO
