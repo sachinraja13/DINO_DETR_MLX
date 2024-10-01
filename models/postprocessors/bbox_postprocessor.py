@@ -5,10 +5,9 @@ import mlx.core as mx
 import mlx.nn as nn
 from util import box_ops
 import numpy as np
-from .utils import sigmoid_focal_loss, MLP
 
 
-class PostProcessor:
+class BBoxPostProcessor:
     """ This module converts the model's output into the format expected by the coco api"""
 
     def __init__(self, num_select=100, nms_iou_threshold=-1) -> None:

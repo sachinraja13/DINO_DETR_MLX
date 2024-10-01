@@ -20,17 +20,18 @@ import math
 from typing import List, Dict
 import mlx.core as mx
 import mlx.nn as nn
+import numpy as np
 from util import box_ops
 from util.misc import (nested_array_dict_array_list,
                        interpolate, inverse_sigmoid)
-from ..backbone import build_backbone
-from .matcher import build_matcher, HungarianMatcher
 from .deformable_transformer import DeformableTransformer, build_deformable_transformer
-from .utils import sigmoid_focal_loss, MLP
+from ..utils import MLP
 from .dn_module import DNEncoder, dn_post_process
-import numpy as np
-from .criterion import SetCriterion
-from .postprocessor import PostProcessor
+
+from ..backbone import build_backbone
+from ..matchers import build_matcher
+from ..loss_criteria import build_loss_criterion
+from ..postprocessors import build_postprocessors
 from ..registry import MODULE_BUILD_FUNCS
 
 
@@ -439,56 +440,7 @@ def build_dino(args):
         dn_labelbook_size=dn_labelbook_size,
     )
     matcher = build_matcher(args)
-
-    # prepare weight dict
-    weight_dict = {'loss_ce': args.cls_loss_coef,
-                   'loss_bbox': args.bbox_loss_coef}
-    weight_dict['loss_giou'] = args.giou_loss_coef
-    clean_weight_dict_wo_dn = copy.deepcopy(weight_dict)
-
-    # for DN training
-    if args.use_dn:
-        weight_dict['loss_ce_dn'] = args.cls_loss_coef
-        weight_dict['loss_bbox_dn'] = args.bbox_loss_coef
-        weight_dict['loss_giou_dn'] = args.giou_loss_coef
-
-    clean_weight_dict = copy.deepcopy(weight_dict)
-
-    # TODO this is a hack
-    if args.aux_loss:
-        aux_weight_dict = {}
-        for i in range(args.dec_layers - 1):
-            aux_weight_dict.update(
-                {k + f'_{i}': v for k, v in clean_weight_dict.items()})
-        weight_dict.update(aux_weight_dict)
-
-    if args.two_stage_type != 'no':
-        interm_weight_dict = {}
-        try:
-            no_interm_box_loss = args.no_interm_box_loss
-        except:
-            no_interm_box_loss = False
-        _coeff_weight_dict = {
-            'loss_ce': 1.0,
-            'loss_bbox': 1.0 if not no_interm_box_loss else 0.0,
-            'loss_giou': 1.0 if not no_interm_box_loss else 0.0,
-        }
-        try:
-            interm_loss_coef = args.interm_loss_coef
-        except:
-            interm_loss_coef = 1.0
-        interm_weight_dict.update({k + f'_interm': v * interm_loss_coef *
-                                  _coeff_weight_dict[k] for k, v in clean_weight_dict_wo_dn.items()})
-        weight_dict.update(interm_weight_dict)
-
-    losses = ['labels', 'boxes', 'cardinality']
-    criterion = SetCriterion(
-        num_classes, matcher=matcher, weight_dict=weight_dict, losses=losses,
-        focal_alpha=args.focal_alpha, use_dn=args.use_dn, training=True,
-        pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
-        n_max_ground_truths=args.n_max_ground_truths
-    )
-    postprocessors = {'bbox': PostProcessor(
-        num_select=args.num_select, nms_iou_threshold=args.nms_iou_threshold)}
+    criterion = build_loss_criterion(args, matcher)
+    postprocessors = build_postprocessors(args)
 
     return model, criterion, postprocessors
