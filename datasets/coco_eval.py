@@ -177,21 +177,23 @@ def merge(img_ids, eval_imgs):
     all_img_ids = img_ids
     all_eval_imgs = eval_imgs
 
-    merged_img_ids = []
-    for p in all_img_ids:
-        merged_img_ids.extend(p)
+    # merged_img_ids = []
+    # for p in all_img_ids:
+    #     merged_img_ids.extend(p)
 
     merged_eval_imgs = []
     for p in all_eval_imgs:
         merged_eval_imgs.append(p)
 
-    merged_img_ids = np.array(merged_img_ids)
-    merged_eval_imgs = np.concatenate(merged_eval_imgs, 2)
+    # merged_img_ids = np.array(merged_img_ids)
+    # merged_eval_imgs = np.concatenate(merged_eval_imgs, 2)
+
+    merged_img_ids = np.array(all_img_ids)
+    merged_eval_imgs = np.array(all_eval_imgs)
 
     # keep only unique (and in sorted order) images
     merged_img_ids, idx = np.unique(merged_img_ids, return_index=True)
     merged_eval_imgs = merged_eval_imgs[..., idx]
-
     return merged_img_ids, merged_eval_imgs
 
 
