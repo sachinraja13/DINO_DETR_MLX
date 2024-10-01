@@ -25,23 +25,23 @@ def renorm(img: mx.array, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         -> mx.array:
     # img: tensor(3,H,W) or tensor(B,3,H,W)
     # return: same as img
-    assert img.dim() == 3 or img.dim() == 4, "img.dim() should be 3 or 4 but %d" % img.dim()
-    if img.dim() == 3:
-        assert img.size(0) == 3, 'img.size(0) shoule be 3 but "%d". (%s)' % (
-            img.size(0), str(img.size()))
-        img_perm = img.transpose(1, 2, 0)
+    assert len(img.shape) == 3 or len(
+        img.shape) == 4, "len(img.shape) should be 3 or 4 but %d" % len(img.shape)
+    if len(img.shape) == 3:
+        assert img.shape[2] == 3, 'img.shape[2] shoule be 3 but "%d". (%s)' % (
+            img.shape[2], str(img.shape))
+        img_perm = img
         mean = mx.array(mean)
         std = mx.array(std)
         img_res = img_perm * std + mean
-        return img_res.transpose(2, 0, 1)
-    else:  # img.dim() == 4
-        assert img.size(1) == 3, 'img.size(1) shoule be 3 but "%d". (%s)' % (
-            img.size(1), str(img.size()))
-        img_perm = img.transpose(0, 2, 3, 1)
+    else:  # len(img.shape) == 3
+        assert img.shape[3] == 3, 'img.size(1) shoule be 3 but "%d". (%s)' % (
+            img.shape[3], str(img.shape))
+        img_perm = img
         mean = mx.array(mean)
         std = mx.array(std)
         img_res = img_perm * std + mean
-        return img_res.transpose(0, 3, 1, 2)
+    return img_res
 
 
 class ColorMap():
@@ -73,7 +73,8 @@ class COCOVisualizer():
         plt.figure(dpi=dpi)
         plt.rcParams['font.size'] = '5'
         ax = plt.gca()
-        img = renorm(img).transpose(1, 2, 0)
+        img = renorm(img)
+        img = np.asarray(img, np.float32)
         ax.imshow(img)
 
         self.addtgt(tgt)
