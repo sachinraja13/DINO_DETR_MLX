@@ -42,9 +42,8 @@ class CocoEvaluator(object):
             coco_eval.cocoDt = coco_dt
             coco_eval.params.imgIds = list(img_ids)
             coco_eval.params.useCats = self.useCats
-            # img_ids, eval_imgs = evaluate(coco_eval)
-            evaluate(coco_eval)
-            # self.eval_imgs[iou_type].append(eval_imgs)
+            img_ids, eval_imgs = evaluate(coco_eval)
+            self.eval_imgs[iou_type].append(eval_imgs)
 
     def synchronize_between_processes(self):
         for iou_type in self.iou_types:
@@ -248,10 +247,8 @@ def evaluate(self):
         for areaRng in p.areaRng
         for imgId in p.imgIds
     ]
-    self.evalImgs = evalImgs
     # this is NOT in the pycocotools code, but could be done outside
-    # evalImgs = np.asarray(evalImgs).reshape(
-    #     len(catIds), len(p.areaRng), len(p.imgIds))
+    evalImgs = np.asarray(evalImgs).reshape(
+        len(catIds), len(p.areaRng), len(p.imgIds))
     self._paramsEval = copy.deepcopy(self.params)
-    # return p.imgIds, evalImgs
-    return
+    return p.imgIds, evalImgs

@@ -250,7 +250,8 @@ def evaluate(model, criterion, postprocessors, data_loader,
             pickle.dump(output_state_dict, f)
 
     print("Averaged stats:", metric_logger)
-
+    if coco_evaluator is not None:
+        coco_evaluator.synchronize_between_processes()
     # accumulate predictions from all images
     if coco_evaluator is not None:
         coco_evaluator.accumulate()
