@@ -1,7 +1,7 @@
 _base_ = ['coco_transformer.py']
 
-compile_computation_graph = True
-compile_forward = True
+compile_computation_graph = False
+compile_forward = False
 # Will not help if compile_backward=True and compile_forward=False
 compile_backward = False
 device = 'gpu'  # 'gpu' or 'cpu'
@@ -11,7 +11,7 @@ load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
-dataset_file = 'synthetic'
+dataset_file = 'coco'
 coco_year = '2017'
 num_classes = 91
 num_samples_synthetic_dataset = 1000
