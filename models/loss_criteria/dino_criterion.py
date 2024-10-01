@@ -8,7 +8,7 @@ import numpy as np
 from ..utils import sigmoid_focal_loss
 
 
-class BaseCriterion:
+class DINOCriterion:
     """ This class computes the loss for DETR.
     The process happens in two steps:
         1) we compute hungarian assignment between ground truth boxes and the outputs of the model

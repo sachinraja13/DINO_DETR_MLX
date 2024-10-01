@@ -1,8 +1,8 @@
-from .base_criterion import BaseCriterion
+from .dino_criterion import DINOCriterion
 import copy
 
 
-def build_loss_criterion(args, matcher):
+def build_dino_loss_criterion(args, matcher):
     # prepare weight dict
     num_classes = args.num_classes
     weight_dict = {'loss_ce': args.cls_loss_coef,
@@ -46,7 +46,7 @@ def build_loss_criterion(args, matcher):
         weight_dict.update(interm_weight_dict)
 
     losses = ['labels', 'boxes', 'cardinality']
-    criterion = BaseCriterion(
+    criterion = DINOCriterion(
         num_classes, matcher=matcher, weight_dict=weight_dict, losses=losses,
         focal_alpha=args.focal_alpha, use_dn=args.use_dn, training=True,
         pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
