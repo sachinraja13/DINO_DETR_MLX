@@ -97,6 +97,7 @@ batch_norm_type = 'FrozenBatchNorm2d'
 masks = False
 aux_loss = True
 set_cost_class = 2.0
+cost_class_type = 'focal_loss_cost'
 set_cost_bbox = 5.0
 set_cost_giou = 2.0
 cls_loss_coef = 1.0
@@ -108,9 +109,12 @@ enc_loss_coef = 1.0
 interm_loss_coef = 1.0
 no_interm_box_loss = False
 focal_alpha = 0.25
+focal_cost_gamma = 2.0
+cec_beta = -1.0
 
 decoder_sa_type = 'sa'  # ['sa', 'ca_label', 'ca_content']
-matcher_type = 'HungarianMatcher'  # or SimpleMinsumMatcher or HungarianMatcher
+# or SimpleMinsumMatcher or HungarianMatcher
+matcher_type = 'StableHungarianMatcher'
 decoder_module_seq = ['sa', 'ca', 'ffn']
 nms_iou_threshold = -1
 
