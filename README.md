@@ -8,6 +8,7 @@ This repository is an adaptation of the **DINO DETR** ([here](https://github.com
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Results](#results)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -59,6 +60,24 @@ python main.py \
  -c config/DINO/DINO_4scale.py --coco_path $coco_path  \
  --eval --resume $checkpoint \
  --options embed_init_tgt=TRUE
+```
+
+### Results
+Results on COCO 2017 Validation dataset when evaluated using preloaded pytorch weights:
+```
+IoU metric: bbox
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.477
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.665
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.517
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.310
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.515
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.619
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.369
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.633
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.703
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.535
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.749
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.863
 ```
 
 ### Contributing
