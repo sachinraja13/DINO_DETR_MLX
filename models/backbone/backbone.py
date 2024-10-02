@@ -2,6 +2,7 @@ from typing import Dict, List
 import mlx.nn as nn
 import mlx.core as mx
 from . import resnet
+from . import swin
 from .positional_embedding import build_position_encoding
 from .utils import FrozenBatchNorm2d
 
@@ -13,13 +14,11 @@ class BackboneBase(nn.Module):
         train_backbone: bool,
         return_interm_layers: List[int],
         num_channels:  List[int],
-        strides: List[int],
         max_layers=4
     ):
         super().__init__()
         self.body = backbone
         self.num_channels = num_channels
-        self.strides = strides
         self.return_layers_map = {
             f"layer{i + max_layers - len(return_interm_layers)}": i for i in return_interm_layers}
         if not train_backbone:
@@ -59,7 +58,6 @@ class Backbone(BackboneBase):
         dilation: bool,
         batch_norm: nn.Module = FrozenBatchNorm2d,
         all_num_channels: List[int] = [256, 512, 1024, 2048],
-        all_strides: List[int] = [4, 8, 16, 32]
     ):
         if name in ['resnet50', 'resnet101']:
             backbone = getattr(resnet, name)(
@@ -70,23 +68,23 @@ class Backbone(BackboneBase):
             assert name not in (
                 'resnet18', 'resnet34'), "Only resnet50 and resnet101 are available."
             assert return_interm_layers in [[0, 1, 2, 3], [1, 2, 3], [3]]
-            num_channels_all = [256, 512, 1024, 2048]
-            all_strides = [4, 8, 16, 32]
-            self.num_channels = num_channels_all[4-len(return_interm_layers):]
-            self.strides = all_strides[4-len(return_interm_layers):]
-            super().__init__(
-                backbone=backbone,
-                train_backbone=train_backbone,
-                return_interm_layers=return_interm_layers,
-                num_channels=self.num_channels,
-                strides=self.strides
-            )
+
+        elif 'swin' in name:
+            backbone = getattr(swin, name)()
+            all_num_channels = backbone.num_layer_features
+        self.num_channels = all_num_channels[4-len(return_interm_layers):]
+
+        super().__init__(
+            backbone=backbone,
+            train_backbone=train_backbone,
+            return_interm_layers=return_interm_layers,
+            num_channels=self.num_channels,
+        )
 
 
 class Joiner(nn.Sequential):
     def __init__(self, backbone, position_embedding):
         super().__init__(backbone, position_embedding)
-        self.strides = backbone.strides
         self.num_channels = backbone.num_channels
 
     def __call__(self, array_dict: Dict[str, mx.array]):
@@ -130,12 +128,16 @@ def build_backbone(args):
             batch_norm=FrozenBatchNorm2d
         )
         bb_num_channels = backbone.num_channels
-    # elif args.backbone in ['swin_T_224_1k', 'swin_B_224_22k', 'swin_B_384_22k', 'swin_L_224_22k', 'swin_L_384_22k']:
-    #     pretrain_img_size = int(args.backbone.split('_')[-2])
-    #     backbone = build_swin_transformer(args.backbone, \
-    #                 pretrain_img_size=pretrain_img_size, \
-    #                 out_indices=tuple(return_interm_indices), \
-    #             dilation=args.dilation, use_checkpoint=use_checkpoint)
+    elif 'swin' in args.backbone:
+
+        backbone = Backbone(
+            name=args.backbone,
+            train_backbone=train_backbone,
+            dilation=args.dilation,
+            return_interm_layers=return_interm_indices,
+            batch_norm=FrozenBatchNorm2d
+        )
+        bb_num_channels = backbone.num_channels
 
     #     # freeze some layers
     #     if backbone_freeze_keywords is not None:
@@ -163,10 +165,6 @@ def build_backbone(args):
     #         _tmp_st = OrderedDict({k:v for k, v in clean_state_dict(checkpoint).items() if key_select_function(k)})
     #         _tmp_st_output = backbone.load_state_dict(_tmp_st, strict=False)
     #         print(str(_tmp_st_output))
-    #     bb_num_channels = backbone.num_features[4 - len(return_interm_indices):]
-    # elif args.backbone in ['convnext_xlarge_22k']:
-    #     backbone = build_convnext(modelname=args.backbone, pretrained=True, out_indices=tuple(return_interm_indices),backbone_dir=args.backbone_dir)
-    #     bb_num_channels = backbone.dims[4 - len(return_interm_indices):]
     else:
         raise NotImplementedError("Unknown backbone {}".format(args.backbone))
 
