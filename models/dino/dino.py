@@ -30,7 +30,7 @@ from .dn_module import DNEncoder, dn_post_process
 
 from ..backbone import build_backbone
 from ..matchers import build_matcher
-from ..loss_criteria import build_dino_loss_criterion
+from ..loss_criteria import build_loss_criterion
 from ..postprocessors import build_postprocessors
 from ..registry import MODULE_BUILD_FUNCS
 
@@ -440,7 +440,7 @@ def build_dino(args):
         dn_labelbook_size=dn_labelbook_size,
     )
     matcher = build_matcher(args)
-    criterion = build_dino_loss_criterion(args, matcher)
+    criterion = build_loss_criterion(args, matcher)
     postprocessors = build_postprocessors(args)
 
     return model, criterion, postprocessors

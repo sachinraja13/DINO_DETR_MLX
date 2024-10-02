@@ -95,11 +95,12 @@ num_select = 300
 transformer_activation = 'relu'
 batch_norm_type = 'FrozenBatchNorm2d'
 masks = False
+
+# 'StableDINOCriterion' or 'DINOCriterion' or 'TwoStageCriterion' or 'BaseCriterion'
+loss_criterion = 'StableDINOCriterion'
 aux_loss = True
-two_stage_binary_cls = False
-eos_coef = 0.1
-set_cost_class = 2.0
 cost_class_type = 'focal_loss_cost'
+set_cost_class = 2.0
 set_cost_bbox = 5.0
 set_cost_giou = 2.0
 cls_loss_coef = 1.0
@@ -112,11 +113,20 @@ interm_loss_coef = 1.0
 no_interm_box_loss = False
 focal_alpha = 0.25
 focal_gamma = 2.0
-cec_beta = -1.0
+two_stage_binary_cls = False
+eos_coef = 0.1
+ta_alpha = 0.0
+ta_beta = 2.0
+use_ce_loss_type = "stable-dino"
+stg1_assigner = None
+enc_kd_loss_weight = -1.0
+enc_kd_loss_gamma = 2.0
+target_post_process = "none"
 
 decoder_sa_type = 'sa'  # ['sa', 'ca_label', 'ca_content']
-# or SimpleMinsumMatcher or HungarianMatcher
+# or SimpleMinsumMatcher or HungarianMatcher or 'StableHungarianMatcher'
 matcher_type = 'StableHungarianMatcher'
+cec_beta = -1.0
 decoder_module_seq = ['sa', 'ca', 'ffn']
 nms_iou_threshold = -1
 

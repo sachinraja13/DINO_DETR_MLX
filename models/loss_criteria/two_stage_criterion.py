@@ -19,9 +19,9 @@ class TwoStageCriterion(BaseCriterion):
         loss_class_type="focal_loss_cost",
         focal_alpha=0.25,
         focal_gamma=2.0,
+        two_stage_binary_cls=False,
         pad_labels_to_n_max_ground_truths=False,
         n_max_ground_truths=500,
-        two_stage_binary_cls=False,
     ):
         super().__init__(
             num_classes, matcher, weight_dict, losses,
