@@ -33,8 +33,8 @@ class StableHungarianMatcher:
         cost_bbox: float = 1,
         cost_giou: float = 1,
         cost_class_type: str = "focal_loss_cost",
-        alpha: float = 0.25,
-        gamma: float = 2.0,
+        focal_alpha: float = 0.25,
+        focal_gamma: float = 2.0,
         cec_beta: float = -1.0,
         pad_labels_to_n_max_ground_truths=False,
         n_max_ground_truths=500
@@ -43,8 +43,8 @@ class StableHungarianMatcher:
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
         self.cost_class_type = cost_class_type
-        self.alpha = alpha
-        self.gamma = gamma
+        self.focal_alpha = focal_alpha
+        self.focal_gamma = focal_gamma
         self.cec_beta = cec_beta  # ce constraint beta
         assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0, "all costs cant be 0"
         assert cost_class_type in {
@@ -120,8 +120,8 @@ class StableHungarianMatcher:
             # The 1 is a constant that doesn't change the matching, it can be ommitted.
             cost_class = -out_prob[:, tgt_ids]
         elif self.cost_class_type == "focal_loss_cost":
-            alpha = self.alpha
-            gamma = self.gamma
+            alpha = self.focal_alpha
+            gamma = self.focal_gamma
             neg_cost_class = (1 - alpha) * (out_prob**gamma) * \
                 (-(1 - out_prob + 1e-8).log())
             pos_cost_class = alpha * \

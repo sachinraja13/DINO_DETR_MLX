@@ -10,7 +10,7 @@ from pathlib import Path
 import os
 import sys
 import numpy as np
-from pprint import pprint
+import pprint
 import mlx.core as mx
 import mlx.optimizers as optim
 from mlx.utils import tree_flatten
@@ -112,7 +112,9 @@ def main(args):
     with open(save_json_path, 'w') as f:
         json.dump(vars(args), f, indent=2)
     logger.info("Full config saved to {}".format(save_json_path))
-    logger.info("args: " + str(args) + '\n')
+    logger.info("args namespace: " + str(args) + '\n')
+    logger.info("args dict:")
+    logger.info(pprint.pformat(vars(args), indent=4))
 
     # fix the seed for reproducibility
     seed = args.seed
