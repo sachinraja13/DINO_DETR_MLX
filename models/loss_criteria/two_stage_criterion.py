@@ -30,45 +30,7 @@ class TwoStageCriterion(BaseCriterion):
         )
         self.two_stage_binary_cls = two_stage_binary_cls
 
-    def forward(self, outputs, targets, return_indices=False):
-        """This performs the loss computation.
-        Parameters:
-             outputs: dict of tensors, see the output specification of the model for the format
-             targets: list of dicts, such that len(targets) == batch_size.
-                      The expected keys in each dict depends on the losses applied, see each loss' doc
-
-             return_indices: used for vis. if True, the layer0-5 indices will be returned as well.
-
-        """
-
-        outputs_without_aux = {k: v for k,
-                               v in outputs.items() if k != "aux_outputs"}
-        indices = self.matcher(outputs_without_aux, targets)
-        if return_indices:
-            indices0_copy = indices
-            indices_list = []
-
-        # Compute the average number of target boxes accross all nodes, for normalization purposes
-        num_boxes = sum(t["num_objects"] for t in targets)
-        num_boxes = mx.array([num_boxes], dtype=mx.float32)
-        num_boxes = mx.clip(num_boxes, 1, None).item()
-        losses = {}
-        for loss in self.losses:
-            losses.update(self.get_loss(
-                loss, outputs, targets, indices, num_boxes))
-
-        # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
-        if "aux_outputs" in outputs:
-            for i, aux_outputs in enumerate(outputs["aux_outputs"]):
-                indices = self.matcher(aux_outputs, targets)
-                if return_indices:
-                    indices_list.append(indices)
-                for loss in self.losses:
-                    l_dict = self.get_loss(
-                        loss, aux_outputs, targets, indices, num_boxes)
-                    l_dict = {k + f"_{i}": v for k, v in l_dict.items()}
-                    losses.update(l_dict)
-
+    def get_encoder_losses(self, outputs, targets, num_boxes, losses):
         # enc output loss
         if 'enc_outputs' in outputs:
             if type(outputs["enc_outputs"]) == list:
@@ -97,9 +59,30 @@ class TwoStageCriterion(BaseCriterion):
                         loss, enc_outputs, targets, indices, num_boxes)
                     l_dict = {k + "_enc": v for k, v in l_dict.items()}
                     losses.update(l_dict)
+        return losses
+
+    def forward(self, outputs, targets, return_indices=False):
+        """This performs the loss computation.
+        Parameters:
+             outputs: dict of tensors, see the output specification of the model for the format
+             targets: list of dicts, such that len(targets) == batch_size.
+                      The expected keys in each dict depends on the losses applied, see each loss' doc
+
+             return_indices: used for vis. if True, the layer0-5 indices will be returned as well.
+
+        """
+        num_boxes = sum(t["num_objects"] for t in targets)
+        num_boxes = mx.array([num_boxes], dtype=mx.float32)
+        num_boxes = mx.clip(num_boxes, 1, None).item()
 
         if return_indices:
-            indices_list.append(indices0_copy)
+            losses, indices_list = super().forward(
+                outputs, targets, return_indices)
+        else:
+            losses = super().forward(outputs, targets, return_indices)
+        losses = self.get_encoder_losses(outputs, targets, num_boxes, losses)
+
+        if return_indices:
             return losses, indices_list
 
         return losses

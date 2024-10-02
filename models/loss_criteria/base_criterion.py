@@ -76,7 +76,7 @@ class BaseCriterion:
         self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
         self.n_max_ground_truths = n_max_ground_truths
 
-    def loss_labels(self, outputs, targets, indices, num_boxes):
+    def loss_labels(self, outputs, targets, indices, num_boxes, log=False):
         """Classification loss (Binary focal loss)
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """

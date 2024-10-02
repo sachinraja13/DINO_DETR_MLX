@@ -6,7 +6,7 @@ import copy
 
 def build_base_criterion(args, matcher):
     num_classes = args.num_classes
-    weight_dict = {'loss_ce': args.cls_loss_coef,
+    weight_dict = {'loss_class': args.cls_loss_coef,
                    'loss_bbox': args.bbox_loss_coef}
     weight_dict['loss_giou'] = args.giou_loss_coef
 
@@ -32,7 +32,7 @@ def build_base_criterion(args, matcher):
 
 def build_two_stage_criterion(args, matcher):
     num_classes = args.num_classes
-    weight_dict = {'loss_ce': args.cls_loss_coef,
+    weight_dict = {'loss_class': args.cls_loss_coef,
                    'loss_bbox': args.bbox_loss_coef}
     weight_dict['loss_giou'] = args.giou_loss_coef
 
@@ -60,14 +60,14 @@ def build_two_stage_criterion(args, matcher):
 def build_dino_loss_criterion(args, matcher):
     # prepare weight dict
     num_classes = args.num_classes
-    weight_dict = {'loss_ce': args.cls_loss_coef,
+    weight_dict = {'loss_class': args.cls_loss_coef,
                    'loss_bbox': args.bbox_loss_coef}
     weight_dict['loss_giou'] = args.giou_loss_coef
     clean_weight_dict_wo_dn = copy.deepcopy(weight_dict)
 
     # for DN training
     if args.use_dn:
-        weight_dict['loss_ce_dn'] = args.cls_loss_coef
+        weight_dict['loss_class_dn'] = args.cls_loss_coef
         weight_dict['loss_bbox_dn'] = args.bbox_loss_coef
         weight_dict['loss_giou_dn'] = args.giou_loss_coef
 
@@ -88,7 +88,7 @@ def build_dino_loss_criterion(args, matcher):
         except:
             no_interm_box_loss = False
         _coeff_weight_dict = {
-            'loss_ce': 1.0,
+            'loss_class': 1.0,
             'loss_bbox': 1.0 if not no_interm_box_loss else 0.0,
             'loss_giou': 1.0 if not no_interm_box_loss else 0.0,
         }
@@ -100,11 +100,14 @@ def build_dino_loss_criterion(args, matcher):
                                   _coeff_weight_dict[k] for k, v in clean_weight_dict_wo_dn.items()})
         weight_dict.update(interm_weight_dict)
 
-    losses = ['labels', 'boxes', 'cardinality']
+    losses = ['class', 'boxes', 'cardinality']
     criterion = DINOCriterion(
         num_classes, matcher=matcher, weight_dict=weight_dict, losses=losses,
-        focal_alpha=args.focal_alpha, use_dn=args.use_dn, training=True,
+        eos_coef=args.eos_coef, loss_class_type=args.cost_class_type,
+        focal_alpha=args.focal_alpha, focal_gamma=args.focal_gamma,
         pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
-        n_max_ground_truths=args.n_max_ground_truths
+        n_max_ground_truths=args.n_max_ground_truths,
+        two_stage_binary_cls=args.two_stage_binary_cls,
+        use_dn=args.use_dn
     )
     return criterion
