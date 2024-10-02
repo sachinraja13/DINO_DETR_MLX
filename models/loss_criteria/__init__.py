@@ -1,4 +1,5 @@
 from .base_criterion import BaseCriterion
+from .two_stage_criterion import TwoStageCriterion
 from .dino_criterion import DINOCriterion
 import copy
 
@@ -25,6 +26,33 @@ def build_base_criterion(args, matcher):
         focal_alpha=args.focal_alpha, focal_gamma=args.focal_gamma,
         pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
         n_max_ground_truths=args.n_max_ground_truths
+    )
+    return criterion
+
+
+def build_two_stage_criterion(args, matcher):
+    num_classes = args.num_classes
+    weight_dict = {'loss_ce': args.cls_loss_coef,
+                   'loss_bbox': args.bbox_loss_coef}
+    weight_dict['loss_giou'] = args.giou_loss_coef
+
+    clean_weight_dict = copy.deepcopy(weight_dict)
+
+    if args.aux_loss:
+        aux_weight_dict = {}
+        for i in range(args.dec_layers - 1):
+            aux_weight_dict.update(
+                {k + f'_{i}': v for k, v in clean_weight_dict.items()})
+        weight_dict.update(aux_weight_dict)
+
+    losses = ['class', 'boxes', 'cardinality']
+    criterion = TwoStageCriterion(
+        num_classes, matcher=matcher, weight_dict=weight_dict, losses=losses,
+        eos_coef=args.eos_coef, loss_class_type=args.cost_class_type,
+        focal_alpha=args.focal_alpha, focal_gamma=args.focal_gamma,
+        pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
+        n_max_ground_truths=args.n_max_ground_truths,
+        two_stage_binary_cls=args.two_stage_binary_cls
     )
     return criterion
 

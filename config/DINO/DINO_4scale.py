@@ -96,6 +96,7 @@ transformer_activation = 'relu'
 batch_norm_type = 'FrozenBatchNorm2d'
 masks = False
 aux_loss = True
+two_stage_binary_cls = False
 eos_coef = 0.1
 set_cost_class = 2.0
 cost_class_type = 'focal_loss_cost'
