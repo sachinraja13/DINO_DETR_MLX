@@ -20,7 +20,7 @@ class BackboneBase(nn.Module):
         self.body = backbone
         self.num_channels = num_channels
         self.return_layers_map = {
-            f"layer{i + max_layers - len(return_interm_layers)}": i for i in return_interm_layers}
+            f"layer{i + 1}": i for i in return_interm_layers}
         if not train_backbone:
             self.body.freeze()
 
@@ -28,6 +28,7 @@ class BackboneBase(nn.Module):
         xs = self.body.features(array_dict['feature_map'])
         out: Dict[str, Dict[str, mx.array]] = {}
         for name, x in xs.items():
+            print(name, x.shape, self.return_layers_map)
             if name not in self.return_layers_map:
                 continue
             m = array_dict['mask']
