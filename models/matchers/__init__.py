@@ -9,20 +9,21 @@ def build_matcher(args):
     if args.matcher_type == 'StableHungarianMatcher':
         return StableHungarianMatcher(
             cost_class=args.set_cost_class, cost_bbox=args.set_cost_bbox, cost_giou=args.set_cost_giou, cost_class_type=args.cost_class_type,
-            alpha=args.focal_alpha, gamma=args.focal_cost_gamma, cec_beta=args.cec_beta,
+            focal_alpha=args.focal_alpha, focal_gamma=args.focal_gamma, cec_beta=args.cec_beta,
             pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
             n_max_ground_truths=args.n_max_ground_truths
         )
     elif args.matcher_type == 'HungarianMatcher':
         return HungarianMatcher(
             cost_class=args.set_cost_class, cost_bbox=args.set_cost_bbox, cost_giou=args.set_cost_giou,
-            focal_alpha=args.focal_alpha, pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
+            focal_alpha=args.focal_alpha, focal_gamma=args.focal_gamma,
+            pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
             n_max_ground_truths=args.n_max_ground_truths
         )
     elif args.matcher_type == 'SimpleMinsumMatcher':
         return SimpleMinsumMatcher(
             cost_class=args.set_cost_class, cost_bbox=args.set_cost_bbox, cost_giou=args.set_cost_giou,
-            focal_alpha=args.focal_alpha,
+            focal_alpha=args.focal_alpha, focal_gamma=args.focal_gamma,
             pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
             n_max_ground_truths=args.n_max_ground_truths
         )

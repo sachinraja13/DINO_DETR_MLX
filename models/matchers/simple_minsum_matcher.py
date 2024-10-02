@@ -18,6 +18,7 @@ class SimpleMinsumMatcher:
         cost_bbox: float = 1,
         cost_giou: float = 1,
         focal_alpha=0.25,
+        focal_gamma=2.0,
         pad_labels_to_n_max_ground_truths=False,
         n_max_ground_truths=500
     ):
@@ -33,6 +34,7 @@ class SimpleMinsumMatcher:
         self.cost_giou = cost_giou
         assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0, "all costs cant be 0"
         self.focal_alpha = focal_alpha
+        self.focal_gamma = focal_gamma
         self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
         self.n_max_ground_truths = n_max_ground_truths
 

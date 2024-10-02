@@ -30,7 +30,7 @@ from .dn_module import DNEncoder, dn_post_process
 
 from ..backbone import build_backbone
 from ..matchers import build_matcher
-from ..loss_criteria import build_dino_loss_criterion
+from ..loss_criteria import build_base_criterion as build_dino_loss_criterion
 from ..postprocessors import build_postprocessors
 from ..registry import MODULE_BUILD_FUNCS
 

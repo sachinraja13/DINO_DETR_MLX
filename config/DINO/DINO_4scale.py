@@ -11,7 +11,7 @@ load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
-dataset_file = 'coco'
+dataset_file = 'synthetic'
 coco_year = '2017'
 num_classes = 91
 num_samples_synthetic_dataset = 1000
@@ -96,6 +96,7 @@ transformer_activation = 'relu'
 batch_norm_type = 'FrozenBatchNorm2d'
 masks = False
 aux_loss = True
+eos_coef = 0.1
 set_cost_class = 2.0
 cost_class_type = 'focal_loss_cost'
 set_cost_bbox = 5.0
@@ -109,7 +110,7 @@ enc_loss_coef = 1.0
 interm_loss_coef = 1.0
 no_interm_box_loss = False
 focal_alpha = 0.25
-focal_cost_gamma = 2.0
+focal_gamma = 2.0
 cec_beta = -1.0
 
 decoder_sa_type = 'sa'  # ['sa', 'ca_label', 'ca_content']
@@ -122,7 +123,7 @@ dec_pred_bbox_embed_share = True
 dec_pred_class_embed_share = True
 
 # for dn
-use_dn = False
+use_dn = True
 dn_number = 100
 dn_box_noise_scale = 0.4
 dn_label_noise_ratio = 0.5
