@@ -48,7 +48,7 @@ max_eval_iterations = None
 
 modelname = 'dino'
 frozen_weights = None
-backbone = 'resnet50'
+backbone = 'swin_v2_large_patch4_window12'
 use_checkpoint = False
 
 dilation = False
