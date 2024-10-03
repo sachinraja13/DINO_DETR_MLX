@@ -113,6 +113,21 @@ def swin_large_patch4_window7(num_classes: int = 1000) -> SwinTransformer:
     )
 
 
+def swin_large_patch4_window12(num_classes: int = 1000) -> SwinTransformer:
+    embed_dim = 192
+    return SwinTransformer(
+        patch_size=[4, 4],
+        embed_dim=embed_dim,
+        depths=[2, 2, 18, 2],
+        num_heads=[6, 12, 24, 48],
+        window_size=[12, 12],
+        interim_layer_channels=[embed_dim, 2 *
+                                embed_dim, 4*embed_dim, 8*embed_dim],
+        stochastic_depth_prob=0.3,
+        num_classes=num_classes,
+    )
+
+
 def swin_v2_large_patch4_window12(num_classes: int = 1000) -> SwinTransformer:
     embed_dim = 192
     return SwinTransformer(
