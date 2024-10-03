@@ -136,7 +136,7 @@ def main(args):
         mx.set_default_device(mx.gpu)
     if args.load_pytorch_weights:
         model = utils.load_mlx_model_with_pytorch_weights(
-            model, args.pytorch_weights_path, logger)
+            model, args.pytorch_weights_path, args.backbone, logger)
     if args.precision == 'half':
         logger.info("Changing weights to half precision")
         model.apply(lambda x: x.astype(mx.bfloat16))

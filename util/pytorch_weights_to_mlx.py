@@ -85,7 +85,7 @@ def generate_input_proj_key_mapping(input_proj_keys, key_mapping):
     return key_mapping
 
 
-def generate_key_mapping(flattened_tree, backbone='resnet'):
+def generate_key_mapping(flattened_tree, backbone):
     module_groups = {'backbone': [], 'input_proj': []}
     key_mapping = {}
     for i in range(len(flattened_tree)):
@@ -98,7 +98,7 @@ def generate_key_mapping(flattened_tree, backbone='resnet'):
                 module_groups[module_type].append(weight_key_to_replace)
         if not key_type_found:
             key_mapping[weight_key_to_replace] = weight_key_to_replace
-    if backbone == 'resnet':
+    if 'resnet' in backbone:
         key_mapping = generate_resnet_backbone_key_mapping(
             module_groups['backbone'], key_mapping)
     key_mapping = generate_input_proj_key_mapping(
@@ -160,6 +160,7 @@ def handle_in_proj_bias(name, param):
 def load_mlx_model_with_pytorch_weights(
     mlx_model,
     pytorch_weights_path,
+    backbone,
     logger=None
 ):
     pytorch_weights_flattened = torch.load(
@@ -191,7 +192,7 @@ def load_mlx_model_with_pytorch_weights(
         processed_pytorch_params.append((k, v))
 
     processed_flattened_tree_torch = tree_unflatten(processed_pytorch_params)
-    key_mapping = generate_key_mapping(processed_pytorch_params)
+    key_mapping = generate_key_mapping(processed_pytorch_params, backbone)
     if logger is not None:
         logger.info("key_mapping:" + pprint.pformat(key_mapping, indent=4))
     processed_mapped_flattened_tree_torch = update_flattened_tree_keys(
