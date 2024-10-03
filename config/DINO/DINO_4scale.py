@@ -7,7 +7,7 @@ compile_backward = False
 device = 'gpu'  # 'gpu' or 'cpu'
 precision = 'full'
 
-load_pytorch_weights = False
+load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
