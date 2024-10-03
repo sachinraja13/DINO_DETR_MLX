@@ -4,22 +4,23 @@ from typing import Any, Callable, List, Optional
 
 import mlx.core as mx
 import mlx.nn as nn
-from .backbone_utils.adaptive_average_pooling import AdaptiveAveragePool2D
+import numpy as np
 
-from .backbone_utils.shared_layers import MLP
-from .backbone_utils.utils import get_pytorch_weights, load_pytorch_weights
-from .backbone_utils.stochastic_depth import StochasticDepth
-from .backbone_utils._registry import register_model
+from ..backbone_utils.misc import StochasticDepth
+from ..backbone_utils.mlp import MLP
+from ..backbone_utils.pool import AdaptiveAvgPool2d
+
+from ..layers import functional as F
 
 
 def _patch_merging_pad(x: mx.array) -> mx.array:
     H, W, _ = x.shape[-3:]
     x = mx.pad(x, [(0, 0), (0, W % 2), (0, H % 2), (0, 0)])
-    x0 = x[..., 0::2, 0::2, :]  # ... C, H/2, W/2
-    x1 = x[..., 1::2, 0::2, :]  # ... C, H/2, W/2
-    x2 = x[..., 0::2, 1::2, :]  # ... C, H/2, W/2
-    x3 = x[..., 1::2, 1::2, :]  # ... C, H/2, W/2
-    x = mx.concatenate([x0, x1, x2, x3], -1)  # ... H/2, W/2, 4*C
+    x0 = x[..., 0::2, 0::2, :]  # C, H/2, W/2
+    x1 = x[..., 1::2, 0::2, :]  # C, H/2, W/2
+    x2 = x[..., 0::2, 1::2, :]  # C, H/2, W/2
+    x3 = x[..., 1::2, 1::2, :]  # C, H/2, W/2
+    x = mx.concatenate([x0, x1, x2, x3], -1)  # H/2, W/2, 4*C
     return x
 
 
@@ -28,6 +29,16 @@ def _get_relative_position_bias(
     relative_position_index: mx.array,
     window_size: List[int],
 ) -> mx.array:
+    """Get relative position bias.
+
+    Args:
+        relative_position_bias_table (mx.array): relative position bias table.
+        relative_position_index (mx.array): relative position index.
+        window_size (List[int]): window size.
+
+    Returns:
+        mx.array: relative position bias.
+    """
     N = window_size[0] * window_size[1]
     # type: ignore[index]
     relative_position_bias = relative_position_bias_table[relative_position_index]
@@ -49,12 +60,13 @@ class PatchMerging(nn.Module):
         self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
         self.norm = norm_layer(4 * dim)
 
-    def __call__(self, x: mx.array):
+    def __call__(self, x: mx.array) -> mx.array:
         """
         Args:
-            x (Tensor): input tensor with expected layout of [..., H, W, C]
+            x (mx.array): input mx.array with expected layout of [..., H, W, C]
+
         Returns:
-            Tensor with layout of [...,  H/2, W/2, 2*C]
+            mx.array: mx.array with layout of [..., H/2, W/2, 2*C]
         """
         x = _patch_merging_pad(x)
         x = self.norm(x)
@@ -78,107 +90,14 @@ class PatchMergingV2(nn.Module):
     def __call__(self, x: mx.array):
         """
         Args:
-            x (Tensor): input tensor with expected layout of [..., H, W, C]
+            x (mx.array): input mx.array with expected layout of [..., H, W, C]
         Returns:
-            Tensor with layout of [..., H/2, W/2, 2*C]
+            mx.array: mx.array with layout of [..., H/2, W/2, 2*C]
         """
         x = _patch_merging_pad(x)
         x = self.reduction(x)  # ... H/2 W/2 2*C
         x = self.norm(x)
         return x
-
-
-def roll(x: mx.array, shifts: List[int], axes: List[int]) -> mx.array:
-    """
-    Roll the tensor along the given dimensions.
-    Args:
-        x (Tensor): input tensor.
-        shifts (List[int]): The number of places by which elements are shifted.
-        axes (List[int]): The axis along which the elements are shifted.
-    Returns:
-        Tensor: The rolled tensor.
-    """
-    output = x
-    for shift, axis in zip(shifts, axes):
-        if shift == 0:
-            continue
-        if shift < 0:
-            shift = x.shape[axis] + shift
-        shift = shift % x.shape[axis]
-        # split and concatenate
-        splits = mx.split(output, [shift], axis=axis)
-        output = mx.concatenate(splits[::-1], axis=axis)
-    return output
-
-
-def normalize(x: mx.array, axis: int, eps: float = 1e-5) -> mx.array:
-    """
-    Normalize the input tensor along the given axis.
-    Args:
-        x (Tensor): input tensor.
-        axis (int): The axis along which the input tensor is normalized.
-        eps (float): A small value to avoid division by zero. Default: 1e-5.
-    Returns:
-        Tensor: The normalized tensor.
-    """
-    return x / (mx.linalg.norm(x, 2, axis, keepdims=True) + eps)
-
-
-def broadcast_arrays(*args):
-    shapes = [arg.shape for arg in args]
-    ndim = max(len(shape) for shape in shapes)
-
-    # Determine the shape of the broadcasted arrays
-    broadcast_shape = [1] * ndim
-    for shape in shapes:
-        for i, dim in enumerate(shape):
-            broadcast_shape[i] = max(broadcast_shape[i], dim)
-    # Broadcast each array to the broadcast shape
-    broadcasted_arrays = []
-    for shape, arg in zip(shapes, args):
-        broadcasted_array = mx.zeros(broadcast_shape, dtype=arg.dtype)
-        for i, dim in enumerate(shape):
-            slices = [slice(0, dim) if j == i else slice(None)
-                      for j in range(ndim)]
-            broadcasted_array[tuple(slices)] = arg
-        broadcasted_arrays.append(broadcasted_array)
-    return tuple(broadcasted_arrays)
-
-
-def meshgrid(*args):
-    shapes = [arg.size for arg in args]
-    ndim = len(args)
-
-    # Prepare shape tuples for output arrays
-    output_shape = tuple([ndim] + shapes)
-
-    # Create arrays to hold coordinate values
-    output = [arg.reshape(-1, 1) for arg in args]
-    output = broadcast_arrays(*output)
-
-    # Stack arrays to obtain final result
-    final_result = mx.zeros(output_shape, dtype=output[0].dtype)
-    for i, arr in enumerate(output):
-        final_result[i] = arr
-
-    return tuple(final_result)
-
-
-def dropout_fn(x: mx.array, p: float, training: bool) -> mx.array:
-    """
-    Dropout the input tensor.
-    Args:
-        x (Tensor): input tensor.
-        p (float): Dropout probability.
-        training (bool): Training flag.
-    Returns:
-        Tensor: The dropout tensor.
-    """
-    if p > 0 and training:
-        mask = mx.random.uniform(
-            0, 1, x.shape, dtype=x.dtype, ctx=x.context) > p
-        x = x * mask / (1 - p)
-    return x
 
 
 def shifted_window_attention(
@@ -199,22 +118,23 @@ def shifted_window_attention(
     """
     Window based multi-head self attention (W-MSA) module with relative position bias.
     It supports both of shifted and non-shifted window.
+
     Args:
-        input (Tensor[N, C, H, W]): The input tensor or 4-dimensions.
-        qkv_weight (Tensor[in_dim, out_dim]): The weight tensor of query, key, value.
-        proj_weight (Tensor[out_dim, out_dim]): The weight tensor of projection.
-        relative_position_bias (Tensor): The learned relative position bias added to attention.
+        input (mx.array[N, C, H, W]): The input mx.array or 4-dimensions.
+        qkv_weight (mx.array[in_dim, out_dim]): The weight mx.array of query, key, value.
+        proj_weight (mx.array[out_dim, out_dim]): The weight mx.array of projection.
+        relative_position_bias (mx.array): The learned relative position bias added to attention.
         window_size (List[int]): Window size.
         num_heads (int): Number of attention heads.
         shift_size (List[int]): Shift size for shifted window attention.
         attention_dropout (float): Dropout ratio of attention weight. Default: 0.0.
         dropout (float): Dropout ratio of output. Default: 0.0.
-        qkv_bias (Tensor[out_dim], optional): The bias tensor of query, key, value. Default: None.
-        proj_bias (Tensor[out_dim], optional): The bias tensor of projection. Default: None.
-        logit_scale (Tensor[out_dim], optional): Logit scale of cosine attention for Swin Transformer V2. Default: None.
+        qkv_bias (mx.array[out_dim], optional): The bias mx.array of query, key, value. Default: None.
+        proj_bias (mx.array[out_dim], optional): The bias mx.array of projection. Default: None.
+        logit_scale (mx.array[out_dim], optional): Logit scale of cosine attention for Swin Transformer V2. Default: None.
         training (bool, optional): Training flag used by the dropout parameters. Default: True.
     Returns:
-        Tensor[N, C, H, W]: The output tensor after shifted window attention.
+        mx.array[N, C, H, W]: The output mx.array after shifted window attention.
     """
     B, H, W, C = input.shape
     # pad feature maps to multiples of window size
@@ -232,7 +152,7 @@ def shifted_window_attention(
 
     # cyclic shift
     if sum(shift_size) > 0:
-        x = roll(x, shifts=(-shift_size[0], -shift_size[1]), axes=(1, 2))
+        x = F.roll(x, shifts=(-shift_size[0], -shift_size[1]), axes=(1, 2))
 
     # partition windows
     num_windows = (pad_H // window_size[0]) * (pad_W // window_size[1])
@@ -244,9 +164,8 @@ def shifted_window_attention(
         window_size[1],
         C,
     )
-    x = x.transpose(0, 1, 3, 2, 4, 5).reshape(
-        B * num_windows, window_size[0] * window_size[1], C
-    )  # B*nW, Ws*Ws, C
+    x = x.transpose(0, 1, 3, 2, 4, 5).reshape(B * num_windows,
+                                              window_size[0] * window_size[1], C)  # B*nW, Ws*Ws, C
 
     # multi-head attention
     if logit_scale is not None and qkv_bias is not None:
@@ -254,14 +173,13 @@ def shifted_window_attention(
         length = qkv_bias.size // 3
         qkv_bias[length: 2 * length] = 0
     qkv = mx.matmul(x, qkv_weight.T) + qkv_bias
-    qkv = qkv.reshape(x.shape[0], x.shape[1], 3, num_heads, C // num_heads).transpose(
-        2, 0, 3, 1, 4
-    )
+    qkv = qkv.reshape(x.shape[0], x.shape[1], 3, num_heads,
+                      C // num_heads).transpose(2, 0, 3, 1, 4)
     q, k, v = qkv[0], qkv[1], qkv[2]
     if logit_scale is not None:
         # cosine attention
-        attn = normalize(q, axis=-1) @ normalize(k,
-                                                 axis=-1).transpose(0, 1, 3, 2)
+        attn = F.normalize(q, axis=-1) @ F.normalize(k,
+                                                     axis=-1).transpose(0, 1, 3, 2)
         logit_scale = mx.clip(logit_scale, a_min=None,
                               a_max=math.log(100.0)).exp()
         attn = attn * logit_scale
@@ -273,9 +191,8 @@ def shifted_window_attention(
 
     if sum(shift_size) > 0:
         # generate attention mask
-        attn_mask = mx.zeros(
-            (pad_H, pad_W), dtype=x.dtype
-        )  # x.new_zeros((pad_H, pad_W))
+        # x.new_zeros((pad_H, pad_W))
+        attn_mask = mx.zeros((pad_H, pad_W), dtype=x.dtype)
         h_slices = (
             (0, -window_size[0]),
             (-window_size[0], -shift_size[0]),
@@ -298,24 +215,22 @@ def shifted_window_attention(
             window_size[1],
         )
         attn_mask = attn_mask.transpose(0, 2, 1, 3).reshape(
-            num_windows, window_size[0] * window_size[1]
-        )
+            num_windows, window_size[0] * window_size[1])
         attn_mask = attn_mask[:, None] - attn_mask[:, :, None]
         # attn_mask[attn_mask != 0] = -100.0
         attn_mask = mx.where(attn_mask != 0, -100.0, 0.0)
-        attn = attn.reshape(
-            x.shape[0] // num_windows, num_windows, num_heads, x.shape[1], x.shape[1]
-        )
+        attn = attn.reshape(x.shape[0] // num_windows,
+                            num_windows, num_heads, x.shape[1], x.shape[1])
         attn = attn + attn_mask[None, :, None, ...]
         attn = attn.reshape(-1, num_heads, x.shape[1], x.shape[1])
 
     attn = nn.softmax(attn, axis=-1)
-    attn = dropout_fn(attn, p=attention_dropout, training=training)
+    attn = F.dropout(attn, p=attention_dropout, training=training)
 
     x = mx.matmul(attn, v).transpose(
         0, 2, 1, 3).reshape(x.shape[0], x.shape[1], C)
     x = mx.matmul(x, proj_weight.T) + proj_bias
-    x = dropout_fn(x, p=dropout, training=training)
+    x = F.dropout(x, p=dropout, training=training)
 
     # reverse windows
     x = x.reshape(
@@ -330,7 +245,8 @@ def shifted_window_attention(
 
     # reverse cyclic shift
     if sum(shift_size) > 0:
-        x = roll(x, shifts=(shift_size[0], shift_size[1]), axes=(1, 2))
+        # type: ignore
+        x = F.roll(x, shifts=(shift_size[0], shift_size[1]), axes=(1, 2))
 
     # unpad features
     x = x[:, :H, :W, :]
@@ -338,8 +254,17 @@ def shifted_window_attention(
 
 
 class ShiftedWindowAttention(nn.Module):
-    """
-    See :func:`shifted_window_attention`.
+    """Shifted Window Attention for Swin Transformer.
+
+    Args:
+        dim (int): number of input channels
+        window_size (List[int]): window size
+        shift_size (List[int]): shift size for shifted window attention
+        num_heads (int): number of attention heads
+        qkv_bias (bool): if True, add bias to the query, key, value projection. Default: True
+        proj_bias (bool): if True, add bias to the output projection. Default: True
+        attention_dropout (float): attention dropout rate. Default: 0.0
+        dropout (float): dropout rate. Default: 0.0
     """
 
     def __init__(
@@ -368,7 +293,8 @@ class ShiftedWindowAttention(nn.Module):
         self.define_relative_position_bias_table()
         self.define_relative_position_index()
 
-    def define_relative_position_bias_table(self):
+    def define_relative_position_bias_table(self) -> None:
+        """Define relative position bias table."""
         # define a parameter table of relative position bias
         self.relative_position_bias_table = mx.zeros(
             (
@@ -378,15 +304,18 @@ class ShiftedWindowAttention(nn.Module):
         )  # 2*Wh-1 * 2*Ww-1, nH
         nn.init.normal(self.relative_position_bias_table, std=0.02)
 
-    def define_relative_position_index(self):
+    def define_relative_position_index(self) -> None:
+        """Define relative position index."""
         # get pair-wise relative position index for each token inside the window
-        coords_h = mx.arange(self.window_size[0])
-        coords_w = mx.arange(self.window_size[1])
-        coords = mx.stack(meshgrid(coords_h, coords_w), axis=0)  # 2, Wh, Ww
-        coords_flatten = mx.flatten(coords, 1)  # 2, Wh*Ww
-        relative_coords = (
-            coords_flatten[:, :, None] - coords_flatten[:, None, :]
-        )  # 2, Wh*Ww, Wh*Ww
+        coords_h = np.arange(self.window_size[0])
+        coords_w = np.arange(self.window_size[1])
+        coords = np.stack(np.meshgrid(
+            coords_h, coords_w, indexing="ij"))  # 2, Wh, Ww
+
+        # coords_flatten = np.flatten(coords, 1)  # 2, Wh*Ww
+        coords_flatten = coords.reshape(coords.shape[0], -1)
+        relative_coords = coords_flatten[:, :, None] - \
+            coords_flatten[:, None, :]  # 2, Wh*Ww, Wh*Ww
         relative_coords = relative_coords.transpose(1, 2, 0)  # Wh*Ww, Wh*Ww, 2
         relative_coords[:, :, 0] += self.window_size[0] - \
             1  # shift to start from 0
@@ -394,21 +323,26 @@ class ShiftedWindowAttention(nn.Module):
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         # Wh*Ww*Wh*Ww
         relative_position_index = relative_coords.sum(-1).flatten()
-        self.relative_position_index = relative_position_index
+        self.relative_position_index = mx.array(relative_position_index)
 
     def get_relative_position_bias(self) -> mx.array:
+        """Get relative position bias.
+
+        Returns:
+            mx.array: relative position bias
+        """
         return _get_relative_position_bias(
             self.relative_position_bias_table,
             self.relative_position_index,
-            self.window_size,  # type: ignore[arg-type]
+            self.window_size,  # type: ignore
         )
 
     def __call__(self, x: mx.array) -> mx.array:
         """
         Args:
-            x (Tensor): Tensor with layout of [B, C, H, W]
+            x (mx.array): mx.array with layout of [B, C, H, W]
         Returns:
-            Tensor with same layout as input, i.e. [B, C, H, W]
+            mx.array with same layout as input, i.e. [B, C, H, W]
         """
         relative_position_bias = self.get_relative_position_bias()
         return shifted_window_attention(
@@ -428,8 +362,17 @@ class ShiftedWindowAttention(nn.Module):
 
 
 class ShiftedWindowAttentionV2(ShiftedWindowAttention):
-    """
-    See :func:`shifted_window_attention_v2`.
+    """Shifted Window Attention for Swin Transformer V2.
+
+    Args:
+        dim (int): number of input channels
+        window_size (List[int]): window size
+        shift_size (List[int]): shift size for shifted window attention
+        num_heads (int): number of attention heads
+        qkv_bias (bool): if True, add bias to the query, key, value projection. Default: True
+        proj_bias (bool): if True, add bias to the output projection. Default: True
+        attention_dropout (float): attention dropout rate. Default: 0.0
+        dropout (float): dropout rate. Default: 0.0
     """
 
     def __init__(
@@ -465,47 +408,47 @@ class ShiftedWindowAttentionV2(ShiftedWindowAttention):
             length = self.qkv.bias.size // 3
             self.qkv.bias[length: 2 * length] = 0
 
-    def define_relative_position_bias_table(self):
+    def define_relative_position_bias_table(self) -> None:
+        """Define relative position bias table."""
         # get relative_coords_table
-        relative_coords_h = mx.arange(
-            -(self.window_size[0] - 1), self.window_size[0], dtype=mx.float32
-        )
-        relative_coords_w = mx.arange(
-            -(self.window_size[1] - 1), self.window_size[1], dtype=mx.float32
-        )
-        relative_coords_table = mx.stack(
-            meshgrid(relative_coords_h, relative_coords_w))
-        relative_coords_table = relative_coords_table.transpose(1, 2, 0)[
-            None
-        ]  # 1, 2*Wh-1, 2*Ww-1, 2
+        relative_coords_h = np.arange(
+            -(self.window_size[0] - 1), self.window_size[0], dtype=np.float32)
+        relative_coords_w = np.arange(
+            -(self.window_size[1] - 1), self.window_size[1], dtype=np.float32)
+        relative_coords_table = np.stack(np.meshgrid(
+            relative_coords_h, relative_coords_w, indexing="ij"))
+        relative_coords_table = relative_coords_table.transpose(
+            1, 2, 0)[None]  # 1, 2*Wh-1, 2*Ww-1, 2
 
         relative_coords_table[:, :, :, 0] /= self.window_size[0] - 1
         relative_coords_table[:, :, :, 1] /= self.window_size[1] - 1
 
         relative_coords_table *= 8  # normalize to -8, 8
-        relative_coords_table = (
-            mx.sign(relative_coords_table)
-            * mx.log2(mx.abs(relative_coords_table) + 1.0)
-            / 3.0
-        )
-        self.relative_coords_table = relative_coords_table
+        relative_coords_table = np.sign(
+            relative_coords_table) * np.log2(np.abs(relative_coords_table) + 1.0) / 3.0
+        self.relative_coords_table = mx.array(relative_coords_table)
 
     def get_relative_position_bias(self) -> mx.array:
+        """Get relative position bias.
+
+        Returns:
+            mx.array: relative position bias
+        """
         relative_position_bias = _get_relative_position_bias(
             self.cpb_mlp(self.relative_coords_table).reshape(-1,
                                                              self.num_heads),
-            self.relative_position_index,  # type: ignore[arg-type]
+            self.relative_position_index,  # type: ignore
             self.window_size,
         )
         relative_position_bias = 16 * mx.sigmoid(relative_position_bias)
         return relative_position_bias
 
-    def __call__(self, x: mx.array):
+    def __call__(self, x: mx.array) -> mx.array:
         """
         Args:
-            x (Tensor): Tensor with layout of [B, C, H, W]
+            x (mx.array): mx.array with layout of [B, C, H, W]
         Returns:
-            Tensor with same layout as input, i.e. [B, C, H, W]
+            mx.array with same layout as input, i.e. [B, C, H, W]
         """
         relative_position_bias = self.get_relative_position_bias()
         return shifted_window_attention(
@@ -567,17 +510,24 @@ class SwinTransformerBlock(nn.Module):
         )
         self.stochastic_depth = StochasticDepth(stochastic_depth_prob, "row")
         self.norm2 = norm_layer(dim)
-        self.mlp = MLP(
-            dim, [int(dim * mlp_ratio), dim], activation_layer=nn.GELU, dropout=dropout
-        )
+        self.mlp = MLP(dim, [int(dim * mlp_ratio), dim],
+                       activation_layer=nn.GELU, dropout=dropout)
 
         for m in self.mlp.modules():
             if isinstance(m, nn.Linear):
-                nn.init.normal(m.weight)
+                nn.init.normal(m.weight)  # type: ignore
                 if m.bias is not None:
-                    nn.init.normal(m.bias, std=1e-6)
+                    nn.init.normal(m.bias, std=1e-6)  # type: ignore
 
-    def __call__(self, x: mx.array):
+    def __call__(self, x: mx.array) -> mx.array:
+        """Forward pass
+
+        Args:
+            x (mx.array): input mx.array with expected layout of [..., H, W, C]
+
+        Returns:
+            mx.array: output mx.array
+        """
         x = x + self.stochastic_depth(self.attn(self.norm1(x)))
         x = x + self.stochastic_depth(self.mlp(self.norm2(x)))
         return x
@@ -625,7 +575,15 @@ class SwinTransformerBlockV2(SwinTransformerBlock):
             attn_layer=attn_layer,
         )
 
-    def __call__(self, x: mx.array):
+    def __call__(self, x: mx.array) -> mx.array:
+        """Forward pass
+
+        Args:
+            x (mx.array): input mx.array with expected layout of [..., H, W, C]
+
+        Returns:
+            mx.array: output mx.array
+        """
         # Here is the difference, we apply norm after the attention in V2.
         # In V1 we applied norm before the attention.
         x = x + self.stochastic_depth(self.norm1(self.attn(x)))
@@ -660,6 +618,7 @@ class SwinTransformer(nn.Module):
         depths: List[int],
         num_heads: List[int],
         window_size: List[int],
+        interim_layer_channels: List[int],
         mlp_ratio: float = 4.0,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
@@ -671,27 +630,24 @@ class SwinTransformer(nn.Module):
     ):
         super().__init__()
         self.num_classes = num_classes
-
+        self.interim_layer_channels = interim_layer_channels
         if block is None:
             block = SwinTransformerBlock
         if norm_layer is None:
             norm_layer = partial(nn.LayerNorm, eps=1e-5)
 
-        layers: List[nn.Module] = []
-        # split image into non-overlapping patches
-        layers.append(
-            nn.Sequential(
-                nn.Conv2d(
-                    3,
-                    embed_dim,
-                    kernel_size=(patch_size[0], patch_size[1]),
-                    stride=(patch_size[0], patch_size[1]),
-                ),
-                nn.Identity(),
-                norm_layer(embed_dim),
-            )
+        self.patch_embed = nn.Sequential(
+            nn.Conv2d(
+                3,
+                embed_dim,
+                kernel_size=(patch_size[0], patch_size[1]),
+                stride=(patch_size[0], patch_size[1]),
+            ),
+            nn.Identity(),
+            norm_layer(embed_dim),
         )
 
+        self.layers: List[nn.Module] = []
         total_stage_blocks = sum(depths)
         stage_block_id = 0
         # build SwinTransformer blocks
@@ -700,19 +656,15 @@ class SwinTransformer(nn.Module):
             dim = embed_dim * 2**i_stage
             for i_layer in range(depths[i_stage]):
                 # adjust stochastic depth probability based on the depth of the stage block
-                sd_prob = (
-                    stochastic_depth_prob
-                    * float(stage_block_id)
-                    / (total_stage_blocks - 1)
-                )
+                sd_prob = stochastic_depth_prob * \
+                    float(stage_block_id) / (total_stage_blocks - 1)
                 stage.append(
                     block(
                         dim,
                         num_heads[i_stage],
                         window_size=window_size,
-                        shift_size=[
-                            0 if i_layer % 2 == 0 else w // 2 for w in window_size
-                        ],
+                        shift_size=[0 if i_layer %
+                                    2 == 0 else w // 2 for w in window_size],
                         mlp_ratio=mlp_ratio,
                         dropout=dropout,
                         attention_dropout=attention_dropout,
@@ -721,162 +673,57 @@ class SwinTransformer(nn.Module):
                     )
                 )
                 stage_block_id += 1
-            layers.append(nn.Sequential(*stage))
+            self.layers.append(nn.Sequential(*stage))
             # add patch merging layer
             if i_stage < (len(depths) - 1):
-                layers.append(downsample_layer(dim, norm_layer))
-        self.features = nn.Sequential(*layers)
+                self.layers.append(downsample_layer(dim, norm_layer))
 
         num_features = embed_dim * 2 ** (len(depths) - 1)
         self.norm = norm_layer(num_features)
-        self.avgpool = AdaptiveAveragePool2D((1, 1))
-        self.head = nn.Linear(num_features, num_classes)
+        self.avgpool = AdaptiveAvgPool2d((1, 1))
+        if self.num_classes > 0:
+            self.head = nn.Linear(num_features, num_classes)
+        else:
+            self.head = nn.Identity()  # type: ignore
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.normal(m.weight, std=0.02)
+                nn.init.normal(m.weight, std=0.02)  # type: ignore
                 if hasattr(m, "bias") and m.bias is not None:
                     nn.init.constant(0)(m.bias)
+        self.get_interim_layers_output = get_interim_layers_output
+        self.interim_layer_channels = interim_layer_channels
 
-    def __call__(self, x):
-        x = self.features(x)
+    def get_features(self, x: mx.array) -> mx.array:
+        """Get model features
+
+        Args:
+            x (mx.array): mx.array
+
+        Returns:
+            mx.array: features
+        """
+        x = self.patch_embed(x)
+        layer_features = []
+        for i in range(len(self.layers)):
+            x = self.layers[i](x)
+            if i % 2 == 0:
+                layer_features.append(x)
+        return layer_features
+
+    def __call__(self, x: mx.array) -> mx.array:
+        """Forward pass
+
+        Args:
+            x (mx.array): mx.array
+
+        Returns:
+            mx.array: mx.array
+        """
+        layer_features = self.get_features(x)
+        x = layer_features[-1]
         x = self.norm(x)
         x = self.avgpool(x)
         x = mx.flatten(x, start_axis=1)
         x = self.head(x)
         return x
-
-    def load_pytorch_weights(self, weights: Any) -> None:
-        load_pytorch_weights(self, weights, ["features.0.0.weight"])
-
-
-def _swin_transformer(
-    patch_size: List[int],
-    embed_dim: int,
-    depths: List[int],
-    num_heads: List[int],
-    window_size: List[int],
-    stochastic_depth_prob: float,
-    **kwargs: Any,
-) -> SwinTransformer:
-    model = SwinTransformer(
-        patch_size=patch_size,
-        embed_dim=embed_dim,
-        depths=depths,
-        num_heads=num_heads,
-        window_size=window_size,
-        stochastic_depth_prob=stochastic_depth_prob,
-        **kwargs,
-    )
-    return model
-
-
-@register_model()
-def swin_t(pretrained: bool = True) -> SwinTransformer:
-    model = _swin_transformer(
-        patch_size=[4, 4],
-        embed_dim=96,
-        depths=[2, 2, 6, 2],
-        num_heads=[3, 6, 12, 24],
-        window_size=[7, 7],
-        stochastic_depth_prob=0.2,
-    )
-    if pretrained:
-        weights_url = "https://download.pytorch.org/models/swin_t-704ceda3.pth"
-        weights = get_pytorch_weights(weights_url)
-        model.load_pytorch_weights(weights)
-    return model
-
-
-@register_model()
-def swin_s(pretrained: bool = True) -> SwinTransformer:
-    model = _swin_transformer(
-        patch_size=[4, 4],
-        embed_dim=96,
-        depths=[2, 2, 18, 2],
-        num_heads=[3, 6, 12, 24],
-        window_size=[7, 7],
-        stochastic_depth_prob=0.2,
-    )
-    if pretrained:
-        weights_url = "https://download.pytorch.org/models/swin_s-5e29d889.pth"
-        weights = get_pytorch_weights(weights_url)
-        model.load_pytorch_weights(weights)
-    return model
-
-
-@register_model()
-def swin_b(pretrained: bool = True) -> SwinTransformer:
-    model = _swin_transformer(
-        patch_size=[4, 4],
-        embed_dim=128,
-        depths=[2, 2, 18, 2],
-        num_heads=[4, 8, 16, 32],
-        window_size=[7, 7],
-        stochastic_depth_prob=0.2,
-    )
-    if pretrained:
-        weights_url = "https://download.pytorch.org/models/swin_b-68c6b09e.pth"
-        weights = get_pytorch_weights(weights_url)
-        model.load_pytorch_weights(weights)
-    return model
-
-
-@register_model()
-def swin_v2_t(pretrained: bool = True, **kwargs) -> SwinTransformer:
-    model = _swin_transformer(
-        patch_size=[4, 4],
-        embed_dim=96,
-        depths=[2, 2, 6, 2],
-        num_heads=[3, 6, 12, 24],
-        window_size=[8, 8],
-        stochastic_depth_prob=0.2,
-        block=SwinTransformerBlockV2,
-        downsample_layer=PatchMergingV2,
-        **kwargs,
-    )
-    if pretrained:
-        weights_url = "https://download.pytorch.org/models/swin_v2_t-b137f0e2.pth"
-        weights = get_pytorch_weights(weights_url)
-        model.load_pytorch_weights(weights)
-    return model
-
-
-@register_model()
-def swin_v2_s(pretrained: bool = True, **kwargs) -> SwinTransformer:
-    model = _swin_transformer(
-        patch_size=[4, 4],
-        embed_dim=96,
-        depths=[2, 2, 18, 2],
-        num_heads=[3, 6, 12, 24],
-        window_size=[8, 8],
-        stochastic_depth_prob=0.3,
-        block=SwinTransformerBlockV2,
-        downsample_layer=PatchMergingV2,
-        **kwargs,
-    )
-    if pretrained:
-        weights_url = "https://download.pytorch.org/models/swin_v2_s-637d8ceb.pth"
-        weights = get_pytorch_weights(weights_url)
-        model.load_pytorch_weights(weights)
-    return model
-
-
-@register_model()
-def swin_v2_b(pretrained: bool = True, **kwargs) -> SwinTransformer:
-    model = _swin_transformer(
-        patch_size=[4, 4],
-        embed_dim=128,
-        depths=[2, 2, 18, 2],
-        num_heads=[4, 8, 16, 32],
-        window_size=[8, 8],
-        stochastic_depth_prob=0.5,
-        block=SwinTransformerBlockV2,
-        downsample_layer=PatchMergingV2,
-        **kwargs,
-    )
-    if pretrained:
-        weights_url = "https://download.pytorch.org/models/swin_v2_b-781e5279.pth"
-        weights = get_pytorch_weights(weights_url)
-        model.load_pytorch_weights(weights)
-    return model
