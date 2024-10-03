@@ -10,7 +10,7 @@ from ..backbone_utils.misc import StochasticDepth
 from ..backbone_utils.mlp import MLP
 from ..backbone_utils.pool import AdaptiveAvgPool2d
 
-from ..layers import functional as F
+from ..backbone_utils import functional as F
 
 
 def _patch_merging_pad(x: mx.array) -> mx.array:
@@ -691,8 +691,6 @@ class SwinTransformer(nn.Module):
                 nn.init.normal(m.weight, std=0.02)  # type: ignore
                 if hasattr(m, "bias") and m.bias is not None:
                     nn.init.constant(0)(m.bias)
-        self.get_interim_layers_output = get_interim_layers_output
-        self.interim_layer_channels = interim_layer_channels
 
     def get_features(self, x: mx.array) -> mx.array:
         """Get model features

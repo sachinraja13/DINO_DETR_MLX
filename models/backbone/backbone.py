@@ -2,7 +2,7 @@ from typing import Dict, List
 import mlx.nn as nn
 import mlx.core as mx
 from . import resnet
-from . import swin
+from . import swin_transformer as swin
 from .positional_embedding import build_position_encoding
 from .utils import FrozenBatchNorm2d
 
@@ -13,23 +13,18 @@ class BackboneBase(nn.Module):
         backbone: nn.Module,
         train_backbone: bool,
         return_interm_layers: List[int],
-        num_channels:  List[int],
-        max_layers=4
     ):
         super().__init__()
         self.body = backbone
-        self.num_channels = num_channels
-        self.return_layers_map = {
-            f"layer{i + max_layers - len(return_interm_layers)}": i for i in return_interm_layers}
+        self.return_interm_layers = return_interm_layers
         if not train_backbone:
             self.body.freeze()
 
     def __call__(self, array_dict: Dict[str, mx.array]):
-        xs = self.body.features(array_dict['feature_map'])
+        xs = self.body.get_features(array_dict['feature_map'])
         out: Dict[str, Dict[str, mx.array]] = {}
-        for name, x in xs.items():
-            if name not in self.return_layers_map:
-                continue
+        for i in self.return_interm_layers:
+            x = xs[i]
             m = array_dict['mask']
             assert m is not None
             interpolation = nn.Upsample(
@@ -40,7 +35,7 @@ class BackboneBase(nn.Module):
                 .astype(mx.bool_)
                 .squeeze(-1)
             )
-            out[name] = {
+            out[i] = {
                 'feature_map': x,
                 'mask': m
             }
@@ -57,28 +52,31 @@ class Backbone(BackboneBase):
         return_interm_layers: List[int],
         dilation: bool,
         batch_norm: nn.Module = FrozenBatchNorm2d,
-        all_num_channels: List[int] = [256, 512, 1024, 2048],
     ):
+        self.num_channels = []
         if name in ['resnet50', 'resnet101']:
             backbone = getattr(resnet, name)(
                 replace_stride_with_dilation=[False, False, dilation],
-                pretrained=False,
                 norm_layer=batch_norm,
             )
+            all_num_channels = backbone.interim_layer_channels
             assert name not in (
                 'resnet18', 'resnet34'), "Only resnet50 and resnet101 are available."
             assert return_interm_layers in [[0, 1, 2, 3], [1, 2, 3], [3]]
+            for i in return_interm_layers:
+                self.num_channels.append(all_num_channels[i])
 
         elif 'swin' in name:
             backbone = getattr(swin, name)()
-            all_num_channels = backbone.num_layer_features
-        self.num_channels = all_num_channels[4-len(return_interm_layers):]
+            all_num_channels = backbone.interim_layer_channels
+            assert return_interm_layers in [[0, 1, 2, 3], [1, 2, 3], [3]]
+            for i in return_interm_layers:
+                self.num_channels.append(all_num_channels[i])
 
         super().__init__(
             backbone=backbone,
             train_backbone=train_backbone,
             return_interm_layers=return_interm_layers,
-            num_channels=self.num_channels,
         )
 
 

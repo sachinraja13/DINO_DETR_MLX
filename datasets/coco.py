@@ -374,6 +374,8 @@ class CocoDetection(torchvision.datasets.CocoDetection):
         return_masks,
         aux_target_hacks=None,
         precision='full',
+        pad_all_images_to_same_size=False,
+        image_array_fixed_size=[1024, 1024, 3],
         pad_labels_to_n_max_ground_truths=False,
         n_max_ground_truths=800
     ):
@@ -383,6 +385,8 @@ class CocoDetection(torchvision.datasets.CocoDetection):
             return_masks, pad_labels_to_n_max_ground_truths, n_max_ground_truths)
         self.aux_target_hacks = aux_target_hacks
         self.precision = precision
+        self.pad_all_images_to_same_size = pad_all_images_to_same_size
+        self.image_array_fixed_size = image_array_fixed_size
         self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
         self.n_max_ground_truths = n_max_ground_truths
 
@@ -439,7 +443,10 @@ class CocoDetection(torchvision.datasets.CocoDetection):
                         target[k] = mx.array(v.numpy(), mx.float16)
                     else:
                         target[k] = mx.array(v.numpy())
-
+        target['pad_all_images_to_same_size'] = self.pad_all_images_to_same_size
+        target['image_array_fixed_size'] = self.image_array_fixed_size
+        target['pad_labels_to_n_max_ground_truths'] = self.pad_labels_to_n_max_ground_truths
+        target['n_max_ground_truths'] = self.n_max_ground_truths
         return img, target
 
 
@@ -729,6 +736,8 @@ def build(image_set, args):
                                 image_set, fix_size=args.fix_size, strong_aug=strong_aug, args=args),
                             return_masks=args.masks,
                             aux_target_hacks=aux_target_hacks_list, precision=args.precision,
+                            pad_all_images_to_same_size=args.pad_all_images_to_same_size,
+                            image_array_fixed_size=args.image_array_fixed_size,
                             pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
                             n_max_ground_truths=args.n_max_ground_truths
                             )
