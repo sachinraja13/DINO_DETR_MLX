@@ -8,7 +8,7 @@ device = 'gpu'  # 'gpu' or 'cpu'
 precision = 'full'
 
 load_pytorch_weights = True
-pytorch_weights_path = 'pytorch_weights/torch_model.pth'
+pytorch_weights_path = 'pytorch_weights/torch_model_swin.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
 dataset_file = 'synthetic'
@@ -48,7 +48,7 @@ max_eval_iterations = None
 
 modelname = 'dino'
 frozen_weights = None
-backbone = 'swin_v2_large_patch4_window12'
+backbone = 'swin_large_patch4_window12'
 use_checkpoint = False
 
 dilation = False

@@ -323,7 +323,7 @@ class ShiftedWindowAttention(nn.Module):
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         # Wh*Ww*Wh*Ww
-        relative_position_index = relative_coords.sum(-1).flatten()
+        relative_position_index = relative_coords.sum(-1)
         self.relative_position_index = mx.array(relative_position_index)
 
     def get_relative_position_bias(self) -> mx.array:
@@ -682,6 +682,9 @@ class SwinTransformer(nn.Module):
         num_features = embed_dim * 2 ** (len(depths) - 1)
         self.norm = norm_layer(num_features)
         self.avgpool = AdaptiveAvgPool2d((1, 1))
+        self.norm_layers = []
+        for i in range(1, len(self.interim_layer_channels)):
+            self.norm_layers.append(norm_layer(self.interim_layer_channels[i]))
         if self.num_classes > 0:
             self.head = nn.Linear(num_features, num_classes)
         else:
@@ -707,6 +710,8 @@ class SwinTransformer(nn.Module):
         for i in range(len(self.layers)):
             x = self.layers[i](x)
             if i % 2 == 0:
+                if i % 2 > 0:
+                    x = self.norm_layers[(i % 2) - 1](x)
                 layer_features.append(x)
         return layer_features
 

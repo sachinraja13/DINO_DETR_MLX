@@ -64,6 +64,37 @@ def generate_resnet_backbone_key_mapping(backbone_keys, key_mapping):
     return key_mapping
 
 
+def generate_swin_backbone_key_mapping(backbone_keys, key_mapping):
+    direct_replace_strings = {
+        'backbone.0': 'backbone.layers.0.body',
+        'mlp.fc1': 'mlp.layers.0',
+        'mlp.fc2': 'mlp.layers.3',
+        'patch_embed.proj': 'patch_embed.layers.0',
+        'patch_embed.norm': 'patch_embed.layers.2',
+        'layers.0.blocks': 'layers.0.layers',
+        'layers.0.downsample': 'layers.1',
+        'layers.1.blocks': 'layers.2.layers',
+        'layers.1.downsample': 'layers.3',
+        'layers.2.blocks': 'layers.4.layers',
+        'layers.2.downsample': 'layers.5',
+        'layers.3.blocks': 'layers.6.layers',
+    }
+
+    for original_key in backbone_keys:
+        new_key = original_key
+        for replace_string in direct_replace_strings:
+            new_key = new_key.replace(
+                replace_string, direct_replace_strings[replace_string])
+        key_mapping[original_key] = new_key
+    key_mapping['backbone.0.norm1.weight'] = 'backbone.layers.0.body.norm_layers.0.weight'
+    key_mapping['backbone.0.norm2.weight'] = 'backbone.layers.0.body.norm_layers.1.weight'
+    key_mapping['backbone.0.norm3.weight'] = 'backbone.layers.0.body.norm_layers.2.weight'
+    key_mapping['backbone.0.norm1.bias'] = 'backbone.layers.0.body.norm_layers.0.bias'
+    key_mapping['backbone.0.norm2.bias'] = 'backbone.layers.0.body.norm_layers.1.bias'
+    key_mapping['backbone.0.norm3.bias'] = 'backbone.layers.0.body.norm_layers.2.bias'
+    return key_mapping
+
+
 def generate_input_proj_key_mapping(input_proj_keys, key_mapping):
     for original_key in input_proj_keys:
         key_tokens = original_key.split('.')
@@ -100,6 +131,9 @@ def generate_key_mapping(flattened_tree, backbone):
             key_mapping[weight_key_to_replace] = weight_key_to_replace
     if 'resnet' in backbone:
         key_mapping = generate_resnet_backbone_key_mapping(
+            module_groups['backbone'], key_mapping)
+    elif 'swin' in backbone:
+        key_mapping = generate_swin_backbone_key_mapping(
             module_groups['backbone'], key_mapping)
     key_mapping = generate_input_proj_key_mapping(
         module_groups['input_proj'], key_mapping)
@@ -167,7 +201,6 @@ def load_mlx_model_with_pytorch_weights(
         pytorch_weights_path, map_location=torch.device('cpu'))
     pytorch_weights_flattened = tree_flatten(
         pytorch_weights_flattened['model'])
-
     processed_pytorch_params = []
     conv_layers = []
     for k, v in pytorch_weights_flattened:
@@ -188,6 +221,8 @@ def load_mlx_model_with_pytorch_weights(
         if len(v.shape) == 4 and 'backbone' in k and 'downsample' in k:
             v = v.transpose(0, 2, 3, 1)
         if 'conv' in k and len(v.shape) == 4:
+            v = v.transpose(0, 2, 3, 1)
+        if len(v.shape) == 4 and 'patch_embed' in k:
             v = v.transpose(0, 2, 3, 1)
         processed_pytorch_params.append((k, v))
 
