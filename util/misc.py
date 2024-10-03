@@ -168,7 +168,9 @@ def collate_fn(batch):
     batch = list(zip(*batch))
     pad_imgs = batch[1][0]['pad_all_images_to_same_size']
     img_fixed_size = batch[1][0]['image_array_fixed_size']
-    batch[0] = nested_array_dict_array_list(batch[0], pad_imgs, img_fixed_size)
+    square_images = batch[1][0]['square_images']
+    batch[0] = nested_array_dict_array_list(
+        batch[0], square_images, pad_imgs, img_fixed_size)
     return tuple(batch)
 
 
@@ -187,7 +189,7 @@ def _max_by_axis(the_list):
     return maxes_div_n
 
 
-def nested_array_dict_array_list(array_list: List[mx.array], pad_imgs, img_fixed_size):
+def nested_array_dict_array_list(array_list: List[mx.array], square_images, pad_imgs, img_fixed_size):
     # TODO make this more general
     if array_list[0].ndim == 3:
         # TODO make it support different-sized images
@@ -196,6 +198,9 @@ def nested_array_dict_array_list(array_list: List[mx.array], pad_imgs, img_fixed
         else:
             max_size = img_fixed_size
         # min_size = tuple(min(s) for s in zip(*[img.shape for img in tensor_list]))
+        if square_images:
+            max_d = max(max_size[1], max_size[0])
+            max_size = [max_d, max_d, max_size[2]]
         batch_shape = [len(array_list)] + max_size
         b, h, w, c = batch_shape
         dtype = array_list[0].dtype

@@ -1,7 +1,7 @@
 _base_ = ['coco_transformer.py']
 
-compile_computation_graph = False
-compile_forward = False
+compile_computation_graph = True
+compile_forward = True
 # Will not help if compile_backward=True and compile_forward=False
 compile_backward = False
 device = 'gpu'  # 'gpu' or 'cpu'
@@ -19,8 +19,7 @@ num_classes_synthetic_dataset = 91
 min_targets_per_image = 50
 max_targets_per_image = 200
 
-pad_all_images_to_same_size = False  # Always set to False for evaluation
-square_images = True
+pad_all_images_to_same_size = True  # Always set to False for evaluation
 image_array_fixed_size = [1024, 1024, 3]
 pad_labels_to_n_max_ground_truths = True  # Always set to False for evaluation
 n_max_ground_truths = 500
@@ -53,7 +52,7 @@ use_checkpoint = False
 dilation = False
 position_embedding = 'sine'
 pe_temperature = 20
-return_interm_indices = [1, 2, 3]
+return_interm_indices = [0, 1, 2, 3]
 backbone_freeze_keywords = None
 enc_layers = 6
 dec_layers = 6
