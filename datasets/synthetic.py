@@ -45,7 +45,7 @@ class SyntheticDataset:
 
     def __getitem__(self, index):
         batch_size = 2
-        height, width = 480, 640
+        height, width = 224, 224
         image = mx.array(np.random.randn(height, width, 3))
         if self.precision == 'half':
             image = image.astype(mx.float16)

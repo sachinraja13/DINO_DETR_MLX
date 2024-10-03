@@ -40,6 +40,7 @@ def _get_relative_position_bias(
         mx.array: relative position bias.
     """
     N = window_size[0] * window_size[1]
+    relative_position_index = relative_position_index.astype(mx.int32)
     # type: ignore[index]
     relative_position_bias = relative_position_bias_table[relative_position_index]
     relative_position_bias = relative_position_bias.reshape(N, N, -1)
