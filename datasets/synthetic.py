@@ -13,6 +13,9 @@ class SyntheticDataset:
         precision='full',
         min_targets_per_image=10,
         max_targets_per_image=100,
+        square_images=False,
+        pad_all_images_to_same_size=False,
+        image_array_fixed_size=[1024, 1024, 3],
         pad_labels_to_n_max_ground_truths=False,
         n_max_ground_truths=800
     ):
@@ -22,6 +25,9 @@ class SyntheticDataset:
         self.precision = precision
         self.min_targets_per_image = min_targets_per_image
         self.max_targets_per_image = max_targets_per_image
+        self.square_images = square_images
+        self.pad_all_images_to_same_size = pad_all_images_to_same_size
+        self.image_array_fixed_size = image_array_fixed_size
         self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
         self.n_max_ground_truths = n_max_ground_truths
 
@@ -41,7 +47,7 @@ class SyntheticDataset:
 
     def __getitem__(self, index):
         batch_size = 2
-        height, width = 480, 640
+        height, width = 224, 256
         image = mx.array(np.random.randn(height, width, 3))
         if self.precision == 'half':
             image = image.astype(mx.float16)
@@ -77,6 +83,11 @@ class SyntheticDataset:
                 'size': mx.array([int(height), int(width)]),
                 'orig_size': mx.array([int(height), int(width)])
             }
+        target['square_images'] = self.square_images
+        target['pad_all_images_to_same_size'] = self.pad_all_images_to_same_size
+        target['image_array_fixed_size'] = self.image_array_fixed_size
+        target['pad_labels_to_n_max_ground_truths'] = self.pad_labels_to_n_max_ground_truths
+        target['n_max_ground_truths'] = self.n_max_ground_truths
         return image, target
 
 
@@ -87,6 +98,9 @@ def build(image_set, args):
         precision=args.precision,
         min_targets_per_image=args.min_targets_per_image,
         max_targets_per_image=args.max_targets_per_image,
+        square_images=args.square_images,
+        pad_all_images_to_same_size=args.pad_all_images_to_same_size,
+        image_array_fixed_size=args.image_array_fixed_size,
         pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
         n_max_ground_truths=args.n_max_ground_truths
     )

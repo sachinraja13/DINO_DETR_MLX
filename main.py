@@ -154,8 +154,6 @@ def main(args):
     optimizer = optim.AdamW(learning_rate=lr_schedule,
                             weight_decay=args.weight_decay)
 
-    utils.pad_all_images_to_same_size = args.pad_all_images_to_same_size
-    utils.image_array_fixed_size = args.image_array_fixed_size
     dataset_train = build_dataset(image_set='train', args=args)
     dataset_val = build_dataset(image_set='val', args=args)
 

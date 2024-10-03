@@ -37,7 +37,7 @@ def check_common_keys(mlx_flattened_model, pytorch_flattened_params):
     return common_keys, mlx_model_keys_not_in_saved_pytorch_params, torch_param_keys_not_in_mlx_model
 
 
-def generate_backbone_key_mapping(backbone_keys, key_mapping):
+def generate_resnet_backbone_key_mapping(backbone_keys, key_mapping):
     for original_key in backbone_keys:
         key_tokens = original_key.split('.')
         new_key = ''
@@ -49,7 +49,17 @@ def generate_backbone_key_mapping(backbone_keys, key_mapping):
                 key_token_integer = int(key_token)
                 new_key = new_key + 'layers.' + str(key_token_integer)
             except:
-                new_key = new_key + key_token
+                if 'layer' in key_token:
+                    print(key_token)
+                    int_layer_token = key_token.split('layer')[1]
+                    # try:
+                    int_layer_token = int(int_layer_token)
+                    new_key = new_key + 'layers.' + str(int_layer_token-1)
+                    print(new_key)
+                    # except:
+                    #     new_key = new_key + key_token
+                else:
+                    new_key = new_key + key_token
         key_mapping[original_key] = new_key
     return key_mapping
 
@@ -75,7 +85,7 @@ def generate_input_proj_key_mapping(input_proj_keys, key_mapping):
     return key_mapping
 
 
-def generate_key_mapping(flattened_tree):
+def generate_key_mapping(flattened_tree, backbone='resnet'):
     module_groups = {'backbone': [], 'input_proj': []}
     key_mapping = {}
     for i in range(len(flattened_tree)):
@@ -88,8 +98,9 @@ def generate_key_mapping(flattened_tree):
                 module_groups[module_type].append(weight_key_to_replace)
         if not key_type_found:
             key_mapping[weight_key_to_replace] = weight_key_to_replace
-    key_mapping = generate_backbone_key_mapping(
-        module_groups['backbone'], key_mapping)
+    if backbone == 'resnet':
+        key_mapping = generate_resnet_backbone_key_mapping(
+            module_groups['backbone'], key_mapping)
     key_mapping = generate_input_proj_key_mapping(
         module_groups['input_proj'], key_mapping)
     return key_mapping

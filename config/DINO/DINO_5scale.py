@@ -1,7 +1,7 @@
 _base_ = ['coco_transformer.py']
 
-compile_computation_graph = False
-compile_forward = False
+compile_computation_graph = True
+compile_forward = True
 # Will not help if compile_backward=True and compile_forward=False
 compile_backward = False
 device = 'gpu'  # 'gpu' or 'cpu'
