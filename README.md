@@ -13,7 +13,7 @@ This repository is an adaptation of the **DINO DETR** ([here](https://github.com
 - [Contributing](#contributing)
 - [License](#license)
 
-## news
+## News
 
 - *Stable Matching and Stable DINO Loss Criterion loss is now supported.*
 - *Results on DINO SWIN-L on COCO Val 2017 dataset are added.*
