@@ -50,12 +50,10 @@ def generate_resnet_backbone_key_mapping(backbone_keys, key_mapping):
                 new_key = new_key + 'layers.' + str(key_token_integer)
             except:
                 if 'layer' in key_token:
-                    print(key_token)
                     int_layer_token = key_token.split('layer')[1]
                     # try:
                     int_layer_token = int(int_layer_token)
                     new_key = new_key + 'layers.' + str(int_layer_token-1)
-                    print(new_key)
                     # except:
                     #     new_key = new_key + key_token
                 else:

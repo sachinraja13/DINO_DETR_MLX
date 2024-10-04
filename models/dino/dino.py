@@ -58,6 +58,11 @@ class DINO(nn.Module):
                  dn_box_noise_scale=0.4,
                  dn_label_noise_ratio=0.5,
                  dn_labelbook_size=100,
+                 square_images=False,
+                 pad_all_images_to_same_size=False,
+                 image_array_fixed_size=[1024, 1024, 3],
+                 pad_labels_to_n_max_ground_truths=False,
+                 n_max_ground_truths=800
                  ):
         """ Initializes the model.
         Parameters:
@@ -97,6 +102,12 @@ class DINO(nn.Module):
         self.use_dn = False
         if self.dn_number > 0:
             self.use_dn = True
+
+        self.square_images = square_images
+        self.pad_all_images_to_same_size = pad_all_images_to_same_size
+        self.image_array_fixed_size = image_array_fixed_size
+        self.pad_labels_to_n_max_ground_truths = pad_labels_to_n_max_ground_truths
+        self.n_max_ground_truths = n_max_ground_truths
 
         # prepare input projection layers
         if num_feature_levels > 1:
@@ -265,7 +276,9 @@ class DINO(nn.Module):
                                 dictionnaries containing the two above keys for each decoder layer.
         """
         if isinstance(samples, (list, mx.array)):
-            samples = nested_array_dict_array_list(samples)
+            samples = nested_array_dict_array_list(samples, self.square_images,
+                                                   self.pad_all_images_to_same_size,
+                                                   self.image_array_fixed_size)
         features, poss = self.backbone(samples)
         srcs = []
         masks = []
@@ -438,6 +451,11 @@ def build_dino(args):
         dn_box_noise_scale=args.dn_box_noise_scale,
         dn_label_noise_ratio=args.dn_label_noise_ratio,
         dn_labelbook_size=dn_labelbook_size,
+        square_images=args.square_images,
+        pad_all_images_to_same_size=args.pad_all_images_to_same_size,
+        image_array_fixed_size=args.image_array_fixed_size,
+        pad_labels_to_n_max_ground_truths=args.pad_labels_to_n_max_ground_truths,
+        n_max_ground_truths=args.n_max_ground_truths
     )
     matcher = build_matcher(args)
     criterion = build_loss_criterion(args, matcher)

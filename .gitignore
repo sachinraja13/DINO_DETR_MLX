@@ -4,3 +4,5 @@ logs/
 __pycache__
 pytorch_weights/torch_model.pth
 pytorch_weights/
+.ipynb_checkpoints/
+.DS_Store
