@@ -149,7 +149,7 @@ def main(args):
         logger.info("Quantizing model")
         logger.info("Quantizing n groups: " + str(args.quantize_groups))
         logger.info("Quantizing n bits: " + str(args.quantize_bits))
-        nn.quantize(model, group_size=32, bits=8,
+        nn.quantize(model, group_size=args.quantize_groups, bits=args.quantize_bits,
                     class_predicate=lambda _, m: isinstance(m, nn.Linear))
 
     wo_class_error = False
