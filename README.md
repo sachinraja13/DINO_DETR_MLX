@@ -4,6 +4,7 @@ This repository is an adaptation of the **DINO DETR** ([here](https://github.com
 
 ## Table of Contents
 
+- [News](#news)
 - [Overview](#overview)
 - [Features](#features)
 - [Installation](#installation)
@@ -11,6 +12,12 @@ This repository is an adaptation of the **DINO DETR** ([here](https://github.com
 - [Results](#results)
 - [Contributing](#contributing)
 - [License](#license)
+
+## news
+
+- *Stable Matching and Stable DINO Loss Criterion loss is now supported.*
+- *Results on DINO SWIN-L on COCO Val 2017 dataset are added.*
+- *Added jupyter notebooks for inference and visualization with both ResNet and SWIN-L backbones.*
 
 ## Overview
 
@@ -63,7 +70,9 @@ python main.py \
 ```
 
 ### Results
-Results on COCO 2017 Validation dataset when evaluated using preloaded pytorch weights:
+
+Results on COCO 2017 Validation dataset when evaluated using preloaded pytorch weights on ResNet50 Backbone:
+
 ```
 IoU metric: bbox
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.477
@@ -78,6 +87,24 @@ IoU metric: bbox
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.535
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.749
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.863
+```
+
+Results on COCO 2017 Validation dataset when evaluated using preloaded pytorch weights on SWIN-L Backbone:
+
+```
+IoU metric: bbox
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.554
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.750
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.602
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.373
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.596
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.721
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.403
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.680
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.747
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.595
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.791
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.899
 ```
 
 ### Contributing
@@ -108,7 +135,7 @@ DINO: DETR with Improved DeNoising Anchor Boxes for End-to-End Object Detection.
 Hao Zhang and Feng Li and Shilong Liu and Lei Zhang and Hang Su and Jun Zhu and Lionel M. Ni and Heung-Yeung Shum
 arXiv 2203.03605
 
-Thanks to [mimm](https://github.com/robertmccraith/mimm/tree/main) for resnet port to MLX.
+Thanks to mlx-image for resnet and swin ports to MLX.
 
 If you find this work useful, please cite this repository and the original authors of DINO DETR as follows:
 

@@ -11,7 +11,7 @@ load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model_swin.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
-dataset_file = 'synthetic'
+dataset_file = 'coco'
 coco_year = '2017'
 num_classes = 91
 synthetic_image_size = (384, 384)
@@ -23,7 +23,7 @@ max_targets_per_image = 200
 pad_all_images_to_same_size = False  # Always set to False for evaluation
 square_images = True
 image_array_fixed_size = [1024, 1024, 3]
-pad_labels_to_n_max_ground_truths = True  # Always set to False for evaluation
+pad_labels_to_n_max_ground_truths = False  # Always set to False for evaluation
 n_max_ground_truths = 500
 
 use_custom_dataloader = False
@@ -99,7 +99,7 @@ batch_norm_type = 'FrozenBatchNorm2d'
 masks = False
 
 # 'StableDINOCriterion' or 'DINOCriterion' or 'TwoStageCriterion' or 'BaseCriterion'
-loss_criterion = 'StableDINOCriterion'
+loss_criterion = 'DINOCriterion'
 aux_loss = True
 cost_class_type = 'focal_loss_cost'
 set_cost_class = 2.0

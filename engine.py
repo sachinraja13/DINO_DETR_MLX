@@ -118,10 +118,15 @@ def evaluate(model, criterion, postprocessors, data_loader,
     def loss_fn(array_dict, targets, need_tgt_for_training=False, return_outputs=False):
         outputs = forward_pass(array_dict, targets, need_tgt_for_training)
         mx.eval(outputs)
-        loss_dict = criterion.forward(outputs, targets)
-        weight_dict = criterion.weight_dict
-        loss = sum(loss_dict[k] * weight_dict[k]
-                   for k in loss_dict.keys() if k in weight_dict)
+        try:
+            loss_dict = criterion.forward(outputs, targets)
+            weight_dict = criterion.weight_dict
+            loss = sum(loss_dict[k] * weight_dict[k]
+                       for k in loss_dict.keys() if k in weight_dict)
+        except:
+            logger.error("Error in loss computation")
+            loss = 0.0
+            loss_dict = {}
         if return_outputs:
             return loss, loss_dict, outputs
         return loss, loss_dict
