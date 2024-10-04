@@ -12,6 +12,7 @@ import sys
 import numpy as np
 import pprint
 import mlx.core as mx
+import mlx.nn as nn
 import mlx.optimizers as optim
 from mlx.utils import tree_flatten
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, BatchSampler
@@ -130,16 +131,27 @@ def main(args):
 
     if not args.compile_computation_graph:
         mx.disable_compile()
+
     if args.device == 'cpu':
         mx.set_default_device(mx.cpu)
     else:
         mx.set_default_device(mx.gpu)
+
     if args.load_pytorch_weights:
         model = utils.load_mlx_model_with_pytorch_weights(
             model, args.pytorch_weights_path, args.backbone, logger)
+
     if args.precision == 'half':
         logger.info("Changing weights to half precision")
         model.apply(lambda x: x.astype(mx.bfloat16))
+
+    if args.quantize_model:
+        logger.info("Quantizing model")
+        logger.info("Quantizing n groups: " + str(args.quantize_groups))
+        logger.info("Quantizing n bits: " + str(args.quantize_bits))
+        nn.quantize(model, group_size=32, bits=8,
+                    class_predicate=lambda _, m: isinstance(m, nn.Linear))
+
     wo_class_error = False
 
     trainable_params = model.trainable_parameters()

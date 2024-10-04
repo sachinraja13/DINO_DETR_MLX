@@ -6,6 +6,9 @@ compile_forward = False
 compile_backward = False
 device = 'gpu'  # 'gpu' or 'cpu'
 precision = 'full'
+quantize_model = False  # Support to quantize linear layers of the model
+quantize_groups = 32
+quantize_bits = 8
 
 load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
