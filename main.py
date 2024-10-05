@@ -171,22 +171,23 @@ def main(args):
 
     data_loader_train = None
     data_loader_val = None
-    if not args.use_custom_dataloader:
-        sampler_train = RandomSampler(dataset_train)
-        sampler_val = SequentialSampler(dataset_val)
+    if not args.reinstantiate_dataloader_every_epoch:
+        if not args.use_custom_dataloader:
+            sampler_train = RandomSampler(dataset_train)
+            sampler_val = SequentialSampler(dataset_val)
 
-        batch_sampler_train = BatchSampler(
-            sampler_train, args.batch_size, drop_last=True)
+            batch_sampler_train = BatchSampler(
+                sampler_train, args.batch_size, drop_last=True)
 
-        data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
-                                       collate_fn=utils.collate_fn, num_workers=args.num_workers)
-        data_loader_val = DataLoader(dataset_val, 1, sampler=sampler_val,
-                                     drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
-    elif not args.reinstantiate_dataloader_every_epoch:
-        data_loader_train = CustomDataLoader(
-            dataset_train, args.batch_size, shuffle=True, collate_fn=utils.collate_fn)
-        data_loader_val = CustomDataLoader(
-            dataset_val, 1, shuffle=False, collate_fn=utils.collate_fn)
+            data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
+                                           collate_fn=utils.collate_fn, num_workers=args.num_workers)
+            data_loader_val = DataLoader(dataset_val, 1, sampler=sampler_val,
+                                         drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
+        else:
+            data_loader_train = CustomDataLoader(
+                dataset_train, args.batch_size, shuffle=True, collate_fn=utils.collate_fn)
+            data_loader_val = CustomDataLoader(
+                dataset_val, 1, shuffle=False, collate_fn=utils.collate_fn)
 
     if args.dataset_file == 'coco':
         base_ds = get_coco_api_from_dataset(dataset_val)
@@ -266,11 +267,23 @@ def main(args):
     best_map_holder = BestMetricHolder()
     for epoch in range(args.start_epoch, args.epochs):
 
-        if args.use_custom_dataloader and args.reinstantiate_dataloader_every_epoch:
-            data_loader_train = CustomDataLoader(
-                dataset_train, args.batch_size, shuffle=True, collate_fn=utils.collate_fn)
-            data_loader_val = CustomDataLoader(
-                dataset_val, 1, shuffle=False, collate_fn=utils.collate_fn)
+        if args.reinstantiate_dataloader_every_epoch:
+            if not args.use_custom_dataloader:
+                sampler_train = RandomSampler(dataset_train)
+                sampler_val = SequentialSampler(dataset_val)
+
+                batch_sampler_train = BatchSampler(
+                    sampler_train, args.batch_size, drop_last=True)
+
+                data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
+                                               collate_fn=utils.collate_fn, num_workers=args.num_workers)
+                data_loader_val = DataLoader(dataset_val, 1, sampler=sampler_val,
+                                             drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
+            else:
+                data_loader_train = CustomDataLoader(
+                    dataset_train, args.batch_size, shuffle=True, collate_fn=utils.collate_fn)
+                data_loader_val = CustomDataLoader(
+                    dataset_val, 1, shuffle=False, collate_fn=utils.collate_fn)
 
         epoch_start_time = time.time()
 

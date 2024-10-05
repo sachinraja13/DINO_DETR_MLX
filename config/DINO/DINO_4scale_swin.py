@@ -17,6 +17,7 @@ resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 dataset_file = 'synthetic'
 coco_year = '2017'
 num_classes = 91
+
 synthetic_image_size = (512, 512)
 num_samples_synthetic_dataset = 1000
 num_classes_synthetic_dataset = 91
