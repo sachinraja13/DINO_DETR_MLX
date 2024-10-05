@@ -102,12 +102,19 @@ class MetricLogger(object):
                 print_dict[name] = str(meter)
         return self.pformat(print_dict, indent=4)
 
-    def get_basic_str(self, basic_keys=['loss', 'learning_rate']):
+    def get_basic_str(self, basic_keys=['loss', 'lr']):
         print_dict = {}
+        print_string = ""
+        num_p = 0
         for key in basic_keys:
             if key in self.meters:
+                print_string += key + ": " + str(self.meters[key])
+                if num_p < len(basic_keys) - 1:
+                    print_string += ", "
                 print_dict[key] = str(self.meters[key])
-        return self.pformat(print_dict, indent=4)
+            num_p += 1
+        # return self.pformat(print_dict, indent=4)
+        return print_string
 
     def add_meter(self, name, meter):
         self.meters[name] = meter

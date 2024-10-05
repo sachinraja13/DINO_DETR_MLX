@@ -33,6 +33,8 @@ n_max_ground_truths = 500
 use_custom_dataloader = False
 reinstantiate_dataloader_every_epoch = False
 
+warm_up_learning_rate = True
+warm_up_learning_rate_steps = 100
 lr = 0.0001
 param_dict_type = 'default'
 batch_size = 2

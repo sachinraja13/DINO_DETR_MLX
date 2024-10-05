@@ -171,8 +171,20 @@ def main(args):
                               args.batch_size) * args.lr_drop_epochs
         logger.info('Changing lr_drop_steps to: ' + str(args.lr_drop_steps))
 
-    lr_schedule = optim.step_decay(
+    lr_schedule = None
+
+    step_decay = optim.step_decay(
         args.lr, args.lr_drop_factor, args.lr_drop_steps)
+
+    warm_up_lr_schedule = None
+    if args.warm_up_learning_rate:
+        warm_up_lr_schedule = optim.linear_schedule(
+            0, args.lr, args.warm_up_learning_rate_steps)
+        lr_schedule = optim.join_schedules([warm_up_lr_schedule, step_decay], [
+                                           args.warm_up_learning_rate_steps])
+    else:
+        lr_schedule = step_decay
+
     optimizer = optim.AdamW(learning_rate=lr_schedule,
                             weight_decay=args.weight_decay)
 
