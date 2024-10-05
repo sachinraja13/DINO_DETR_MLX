@@ -18,14 +18,15 @@ dataset_file = 'coco'
 coco_year = '2017'
 num_classes = 91
 
-synthetic_image_size = (384, 384)
+synthetic_image_size = (512, 512)
 num_samples_synthetic_dataset = 1000
 num_classes_synthetic_dataset = 91
 min_targets_per_image = 50
 max_targets_per_image = 200
 
 pad_all_images_to_same_size = True  # Always set to False for evaluation
-image_array_fixed_size = [1024, 1024, 3]
+square_images = True
+image_array_fixed_size = [512, 512, 3]
 pad_labels_to_n_max_ground_truths = True  # Always set to False for evaluation
 n_max_ground_truths = 500
 
@@ -37,15 +38,16 @@ param_dict_type = 'default'
 batch_size = 1
 weight_decay = 0.0001
 epochs = 30
+use_lr_drop_epochs = True  # If False, use lr_drop_steps
 lr_drop_steps = 50000
-lr_drop_epochs = 5
+lr_drop_epochs = 1
 lr_drop_factor = 0.5
 save_checkpoint_interval = 1
 clip_max_norm = 0.1
 lr_drop_list = [33, 45]
 
 print_freq = 10
-print_loss_dict_freq = 100
+print_loss_dict_freq = 5000
 
 max_eval_iterations = None
 
@@ -139,7 +141,7 @@ dec_pred_bbox_embed_share = True
 dec_pred_class_embed_share = True
 
 # for dn
-use_dn = False
+use_dn = True
 dn_number = 100
 dn_box_noise_scale = 0.4
 dn_label_noise_ratio = 0.5

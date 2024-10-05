@@ -11,7 +11,7 @@ quantize_groups = 32
 quantize_bits = 8
 
 load_pytorch_weights = True
-pytorch_weights_path = 'pytorch_weights/torch_model_swin.pth'
+pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
 dataset_file = 'synthetic'
@@ -38,8 +38,9 @@ param_dict_type = 'default'
 batch_size = 1
 weight_decay = 0.0001
 epochs = 30
+use_lr_drop_epochs = True  # If False, use lr_drop_steps
 lr_drop_steps = 50000
-lr_drop_epochs = 5
+lr_drop_epochs = 1
 lr_drop_factor = 0.5
 save_checkpoint_interval = 1
 clip_max_norm = 0.1

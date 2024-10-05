@@ -25,11 +25,11 @@ class DNEncoder(nn.Module):
             known = [mx.ones_like(t['labels']) for t in targets]
             num_objects = [t['num_objects'] for t in targets]
             labels_range = [mx.arange(t['labels'].shape[0]) for t in targets]
-            labels_range = mx.concatenate(labels_range)
             objects_masks = []
             for i in range(len(num_objects)):
-                objects_mask = mx.where(labels_range < num_objects[i], 1, 0)
+                objects_mask = mx.where(labels_range[i] < num_objects[i], 1, 0)
                 objects_masks.append(objects_mask)
+            labels_range = mx.concatenate(labels_range)
             objects_masks = mx.concatenate(objects_masks)
             batch_size = len(known)
             known_num = [mx.sum(k) for k in known]

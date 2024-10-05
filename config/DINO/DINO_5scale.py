@@ -10,7 +10,7 @@ quantize_model = False  # Support to quantize linear layers of the model
 quantize_groups = 32
 quantize_bits = 8
 
-load_pytorch_weights = False
+load_pytorch_weights = True
 pytorch_weights_path = 'pytorch_weights/torch_model.pth'
 resume_checkpoint = None  # Load from output_dir + resume_checkpoint directory
 
@@ -18,14 +18,15 @@ dataset_file = 'synthetic'
 coco_year = '2017'
 num_classes = 91
 
-synthetic_image_size = (384, 384)
+synthetic_image_size = (512, 512)
 num_samples_synthetic_dataset = 1000
 num_classes_synthetic_dataset = 91
 min_targets_per_image = 50
 max_targets_per_image = 200
 
 pad_all_images_to_same_size = True  # Always set to False for evaluation
-image_array_fixed_size = [1024, 1024, 3]
+square_images = True
+image_array_fixed_size = [512, 512, 3]
 pad_labels_to_n_max_ground_truths = True  # Always set to False for evaluation
 n_max_ground_truths = 500
 
@@ -37,8 +38,9 @@ param_dict_type = 'default'
 batch_size = 1
 weight_decay = 0.0001
 epochs = 30
+use_lr_drop_epochs = True  # If False, use lr_drop_steps
 lr_drop_steps = 50000
-lr_drop_epochs = 5
+lr_drop_epochs = 1
 lr_drop_factor = 0.5
 save_checkpoint_interval = 1
 clip_max_norm = 0.1
@@ -80,7 +82,7 @@ dabdetr_deformable_decoder = False
 use_deformable_box_attn = False
 box_attn_type = 'roi_align'
 dec_layer_number = None
-num_feature_levels = 4
+num_feature_levels = 5
 enc_n_points = 4
 dec_n_points = 4
 decoder_layer_noise = False

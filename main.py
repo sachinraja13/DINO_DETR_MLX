@@ -5,6 +5,7 @@ import argparse
 import datetime
 import json
 import random
+import math
 import time
 from pathlib import Path
 import os
@@ -161,13 +162,19 @@ def main(args):
     logger.info("params:\n"+json.dumps({n: p.size for n,
                 p in tree_flatten(trainable_params)}, indent=2))
 
+    dataset_train = build_dataset(image_set='train', args=args)
+    dataset_val = build_dataset(image_set='val', args=args)
+
+    if args.use_lr_drop_epochs:
+        logger.info('use_lr_drop_epochs is set to True')
+        args.lr_drop_steps = (len(dataset_train) //
+                              args.batch_size) * args.lr_drop_epochs
+        logger.info('Changing lr_drop_steps to: ' + str(args.lr_drop_steps))
+
     lr_schedule = optim.step_decay(
         args.lr, args.lr_drop_factor, args.lr_drop_steps)
     optimizer = optim.AdamW(learning_rate=lr_schedule,
                             weight_decay=args.weight_decay)
-
-    dataset_train = build_dataset(image_set='train', args=args)
-    dataset_val = build_dataset(image_set='val', args=args)
 
     data_loader_train = None
     data_loader_val = None
