@@ -53,7 +53,7 @@ class SyntheticDataset:
         image = mx.array(np.random.randn(height, width, 3))
         if self.precision == 'half':
             image = image.astype(mx.float16)
-
+        image = mx.stop_gradient(image)
         num_targets = np.random.randint(
             self.min_targets_per_image, self.max_targets_per_image + 1)
         labels_np = np.random.randint(
@@ -71,19 +71,19 @@ class SyntheticDataset:
 
         if self.precision == 'half':
             target = {
-                'labels': mx.array(labels_np).astype(mx.int16),
-                'boxes': mx.array(boxes_np).astype(mx.float16),
+                'labels': mx.stop_gradient(mx.array(labels_np).astype(mx.int16)),
+                'boxes': mx.stop_gradient(mx.array(boxes_np).astype(mx.float16)),
                 'num_objects': min(num_objects, self.n_max_ground_truths),
-                'size': mx.array([int(height), int(width)]),
-                'orig_size': mx.array([int(height), int(width)])
+                'size': mx.stop_gradient(mx.array([int(height), int(width)])),
+                'orig_size': mx.stop_gradient(mx.array([int(height), int(width)]))
             }
         else:
             target = {
-                'labels': mx.array(labels_np).astype(mx.int32),
-                'boxes': mx.array(boxes_np).astype(mx.float32),
+                'labels': mx.stop_gradient(mx.array(labels_np).astype(mx.int32)),
+                'boxes': mx.stop_gradient(mx.array(boxes_np).astype(mx.float32)),
                 'num_objects': min(num_objects, self.n_max_ground_truths),
-                'size': mx.array([int(height), int(width)]),
-                'orig_size': mx.array([int(height), int(width)])
+                'size': mx.stop_gradient(mx.array([int(height), int(width)])),
+                'orig_size': mx.stop_gradient(mx.array([int(height), int(width)]))
             }
         target['square_images'] = self.square_images
         target['pad_all_images_to_same_size'] = self.pad_all_images_to_same_size

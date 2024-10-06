@@ -433,6 +433,7 @@ class CocoDetection(torchvision.datasets.CocoDetection):
         img = mx.array(img.numpy()).transpose(1, 2, 0)
         if self.precision == 'half':
             img = img.astype(mx.float16)
+        img = mx.stop_gradient(img)
         for k, v in target.items():
             if isinstance(v, torch.Tensor):
                 if v.dtype == torch.int64:
@@ -445,6 +446,7 @@ class CocoDetection(torchvision.datasets.CocoDetection):
                         target[k] = mx.array(v.numpy(), mx.float16)
                     else:
                         target[k] = mx.array(v.numpy())
+                target[k] = mx.stop_gradient(target[k])
         target['square_images'] = self.square_images
         target['pad_all_images_to_same_size'] = self.pad_all_images_to_same_size
         target['image_array_fixed_size'] = self.image_array_fixed_size
