@@ -171,22 +171,36 @@ def main(args):
                               args.batch_size) * args.lr_drop_epochs
         logger.info('Changing lr_drop_steps to: ' + str(args.lr_drop_steps))
 
+    decay_schedule = None
     lr_schedule = None
 
     step_decay = optim.step_decay(
         args.lr, args.lr_drop_factor, args.lr_drop_steps)
+    args.cosine_decay_num_steps = (len(dataset_train) //
+                                   args.batch_size) * args.lr_drop_epochs
+    cosine_decay = optim.cosine_decay(
+        args.lr, args.cosine_decay_num_steps, args.cosine_decay_end)
+    if args.learning_schedule == 'cosine_decay':
+        decay_schedule = cosine_decay
+        logger.info('Using cosine decay learning rate schedule.')
+    else:
+        decay_schedule = step_decay
+        logger.info('Using step decay learning rate schedule.')
 
     warm_up_lr_schedule = None
     if args.warm_up_learning_rate:
         warm_up_lr_schedule = optim.linear_schedule(
             0, args.lr, args.warm_up_learning_rate_steps)
-        lr_schedule = optim.join_schedules([warm_up_lr_schedule, step_decay], [
+        lr_schedule = optim.join_schedules([warm_up_lr_schedule, decay_schedule], [
                                            args.warm_up_learning_rate_steps])
     else:
-        lr_schedule = step_decay
+        lr_schedule = decay_schedule
 
     optimizer = optim.AdamW(learning_rate=lr_schedule,
                             weight_decay=args.weight_decay)
+    if args.optimizer_type == 'Adam' or args.optimizer_type == 'Adamax':
+        optimizer = getattr(optim, args.optimizer_type)(
+            learning_rate=lr_schedule)
 
     data_loader_train = None
     data_loader_val = None
@@ -224,21 +238,22 @@ def main(args):
         logger.info("Loaded model weights from {}".format(
             str(frozen_checkpoint_path)))
         if not args.eval:
-            optimizer.state = optimizer_state
-            logger.info("Loaded optimizer state from {}".format(
-                str(frozen_checkpoint_path)))
+            if not args.reset_optimizer:
+                optimizer.state = optimizer_state
+                logger.info("Loaded optimizer state from {}".format(
+                    str(frozen_checkpoint_path)))
             last_epoch = args_json['last_epoch']
             logger.info(
                 "Last epoch {}".format(last_epoch))
 
     output_dir = Path(args.output_dir)
 
-    if args.resume and len(args.resume) > 0:
-        args.resume_checkpoint = args.resume
+    if args.resume and args.resume_checkpoint is None:
+        args.resume_checkpoint = 'checkpoint'
 
     args.resume_checkpoint_complete_path = None
 
-    if args.resume_checkpoint and os.path.exists(os.path.join(args.output_dir, args.resume_checkpoint)):
+    if args.resume and os.path.exists(os.path.join(args.output_dir, args.resume_checkpoint)):
         args.resume_checkpoint_complete_path = os.path.join(
             args.output_dir, args.resume_checkpoint)
     if args.resume_checkpoint_complete_path:
@@ -250,9 +265,10 @@ def main(args):
         logger.info("Loaded model weights from {}".format(
             str(checkpoint_path)))
         if not args.eval:
-            optimizer.state = optimizer_state
-            logger.info("Loaded optimizer state from {}".format(
-                str(checkpoint_path)))
+            if not args.reset_optimizer:
+                optimizer.state = optimizer_state
+                logger.info("Loaded optimizer state from {}".format(
+                    str(checkpoint_path)))
             args.start_epoch = args_json['last_epoch'] + 1
             logger.info(
                 "Starting training from epoch {}".format(args.start_epoch))
