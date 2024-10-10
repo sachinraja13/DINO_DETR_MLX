@@ -212,7 +212,6 @@ class DINOCriterion(TwoStageCriterion):
                 outputs, targets, num_boxes, losses,
                 output_known_lbs_bboxes, dn_pos_idx, dn_neg_idx, scalar)
 
-        losses = self.get_encoder_losses(outputs, targets, num_boxes, losses)
         indices_list, losses = self.get_interim_losses(
             outputs, targets, num_boxes, losses, indices_list, return_indices)
 

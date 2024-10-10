@@ -103,11 +103,9 @@ class BaseCriterion:
             bs, nq = target_classes.shape
             target_classes_onehot[mx.arange(bs)[:, None, None], mx.arange(
                 nq)[None, :, None], target_classes[:, :, None]] = 1
-
             target_classes_onehot = target_classes_onehot[:, :, :-1]
             loss_class = sigmoid_focal_loss(src_logits, target_classes_onehot,
                                             num_boxes, alpha=self.focal_alpha, gamma=self.focal_gamma) * src_logits.shape[1]
-
         losses = {"loss_class": loss_class}
 
         return losses
@@ -174,7 +172,7 @@ class BaseCriterion:
     def get_loss(self, loss, outputs, targets, indices, num_boxes, **kwargs):
         loss_map = {
             "class": self.loss_labels,
-            'cardinality': self.loss_cardinality,
+            "cardinality": self.loss_cardinality,
             "boxes": self.loss_boxes,
         }
         assert loss in loss_map, f"do you really want to compute {loss} loss?"

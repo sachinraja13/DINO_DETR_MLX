@@ -117,7 +117,7 @@ cost_class_type = 'focal_loss_cost'
 set_cost_class = 2.0
 set_cost_bbox = 5.0
 set_cost_giou = 2.0
-cls_loss_coef = 1.0
+cls_loss_coef = 6.0
 mask_loss_coef = 1.0
 dice_loss_coef = 1.0
 bbox_loss_coef = 5.0
@@ -135,12 +135,12 @@ use_ce_loss_type = "stable-dino"
 stg1_assigner = None
 enc_kd_loss_weight = -1.0
 enc_kd_loss_gamma = 2.0
-target_post_process = "none"
+target_post_process = "exp"
 
 decoder_sa_type = 'sa'  # ['sa', 'ca_label', 'ca_content']
 # or SimpleMinsumMatcher or HungarianMatcher or 'StableHungarianMatcher'
 matcher_type = 'StableHungarianMatcher'
-cec_beta = -1.0
+cec_beta = 0.5
 decoder_module_seq = ['sa', 'ca', 'ffn']
 nms_iou_threshold = -1
 

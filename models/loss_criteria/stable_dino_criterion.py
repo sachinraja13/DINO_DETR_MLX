@@ -76,7 +76,7 @@ class StableDINOCriterion(DINOCriterion):
         target_classes_o = mx.concatenate(
             [t["labels"][J] for t, (_, J) in zip(targets, indices)])
         target_classes = mx.full(src_logits.shape[:2], self.num_classes,
-                                 dtype=mx.int16)
+                                 dtype=mx.int32)
         target_classes[idx] = target_classes_o
         target_classes_onehot = mx.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2]+1],
                                          dtype=src_logits.dtype)
@@ -132,16 +132,16 @@ class StableDINOCriterion(DINOCriterion):
                         max_iou = 1.0
                     else:
                         max_iou = all_iou[i, :, cum:cum+ngt_in_batch[i]].max()
-                normalizer = max((max_iou / (_t[i].max() + 1e-8)), 1)
+                normalizer = max(
+                    (max_iou / mx.stop_gradient(_t[i].max() + 1e-8)), 1)
                 norm_t[i] = _t[i] * normalizer
                 cum += ngt_in_batch[i]
-            norm_t = np.asarray(norm_t)
+            norm_t = mx.stop_gradient(norm_t)
             neg_loss = (1 - self.focal_alpha) * (out_prob**self.focal_gamma) * \
                 (1 - target_classes_onehot) * (-(1 - out_prob + 1e-8).log())
             pos_loss = target_classes_onehot * (
                 self.focal_alpha * ((norm_t - out_prob)**self.focal_gamma) *
-                (-norm_t * out_prob.log() - (1 - norm_t)
-                 * (1 - out_prob + 1e-8).log())
+                (-norm_t * out_prob.log() - (1 - norm_t) * (1 - out_prob + 1e-8).log())
             )
             loss_class = (pos_loss + neg_loss).sum() / num_boxes
 
@@ -161,7 +161,6 @@ class StableDINOCriterion(DINOCriterion):
         else:
             assert self.use_ce_loss_type in [
                 'none', 'stable-dino'], "use_ce_loss_type should be none or stable-dino"
-
         losses = {"loss_class": loss_class}
         return losses
 

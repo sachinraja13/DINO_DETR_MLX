@@ -48,7 +48,7 @@ class StableHungarianMatcher:
         self.cec_beta = cec_beta  # ce constraint beta
         assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0, "all costs cant be 0"
         assert cost_class_type in {
-            "ce_cost",
+            "ce_loss_cost",
             "focal_loss_cost",
             "focal_loss_cost2"
         }, "only support ce loss or focal loss for computing class cost"
@@ -85,7 +85,7 @@ class StableHungarianMatcher:
         """
         bs, num_queries = outputs["pred_logits"].shape[:2]
 
-        if self.cost_class_type == "ce_cost":
+        if self.cost_class_type == "ce_loss_cost":
             out_prob = mx.softmax(outputs["pred_logits"].flatten(0, 1))
         else:
             out_prob = mx.sigmoid(outputs["pred_logits"].flatten(0, 1))
@@ -105,7 +105,7 @@ class StableHungarianMatcher:
             _u = mx.zeros_like(_s)
             _u[:, tgt_ids] = giou
             _uv = mx.reshape(_u, (bs, num_queries, -1))
-            _u_max = _uv.flatten(1, 2).max(-1)[0]
+            _u_max = _uv.flatten(1, 2).max(-1)
             scalar = 1 / (mx.array(_u_max) + 1e-8)
             scalar = mx.maximum(scalar, mx.ones_like(scalar))
             _uv = _uv * scalar[:, None, None]
@@ -114,7 +114,7 @@ class StableHungarianMatcher:
             # ce constraint beta
 
         # Compute the classification cost.
-        if self.cost_class_type == "ce_cost":
+        if self.cost_class_type == "ce_loss_cost":
             # Compute the classification cost. Contrary to the loss, we don't use the NLL,
             # but approximate it in 1 - proba[target class].
             # The 1 is a constant that doesn't change the matching, it can be ommitted.

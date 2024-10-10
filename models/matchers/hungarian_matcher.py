@@ -79,7 +79,7 @@ class HungarianMatcher:
 
         # Compute the classification cost.
         alpha = self.focal_alpha
-        gamma = 2.0
+        gamma = self.focal_gamma
         neg_cost_class = (1 - alpha) * (out_prob ** gamma) * \
             (-(1 - out_prob + 1e-8).log())
         pos_cost_class = alpha * \
