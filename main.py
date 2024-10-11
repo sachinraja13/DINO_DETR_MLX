@@ -234,7 +234,7 @@ def main(args):
             args.output_dir, args.frozen_weights))
         model_weights, optimizer_state, args_json = utils.load_complete_state(
             utils.get_state_path_dict(frozen_checkpoint_path))
-        model.update(model_weights)
+        model.load_weights(model_weights)
         model_without_ddp = model
         logger.info("Loaded model weights from {}".format(
             str(frozen_checkpoint_path)))
@@ -261,7 +261,7 @@ def main(args):
         checkpoint_path = Path(args.resume_checkpoint_complete_path)
         model_weights, optimizer_state, args_json = utils.load_complete_state(
             utils.get_state_path_dict(checkpoint_path))
-        model.update(model_weights)
+        model.load_weights(model_weights)
         model_without_ddp = model
         logger.info("Loaded model weights from {}".format(
             str(checkpoint_path)))

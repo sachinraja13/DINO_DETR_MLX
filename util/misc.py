@@ -316,7 +316,7 @@ def load_complete_state(path_dict):
     except:
         print("Unable to load arguments namespace")
     try:
-        model_weights = mx.load(path_dict['model'])
+        model_weights = tree_flatten(mx.load(path_dict['model']))
     except:
         print("Unable to load MLX model weights")
     try:
