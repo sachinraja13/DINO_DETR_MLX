@@ -167,11 +167,11 @@ def shifted_window_attention(
                                               window_size[0] * window_size[1], C)  # B*nW, Ws*Ws, C
 
     # multi-head attention
-    if logit_scale is not None and qkv.bias:
-        qkv.bias = qkv.bias
-        length = qkv.bias.size // 3
-        qkv.bias[length: 2 * length] = 0
-    # qkv = mx.matmul(x, qkv_weight.T) + qkv_bias
+    if logit_scale is not None and hasattr(qkv_layer, 'bias'):
+        qkv_layer.bias = qkv_layer.bias
+        length = qkv_layer.bias.size // 3
+        qkv_layer.bias[length: 2 * length] = 0
+
     qkv = qkv_layer(x)
     qkv = qkv.reshape(x.shape[0], x.shape[1], 3, num_heads,
                       C // num_heads).transpose(2, 0, 3, 1, 4)
@@ -229,7 +229,7 @@ def shifted_window_attention(
 
     x = mx.matmul(attn, v).transpose(
         0, 2, 1, 3).reshape(x.shape[0], x.shape[1], C)
-    # x = mx.matmul(x, proj_weight.T) + proj_bias
+
     x = proj_layer(x)
     x = F.dropout(x, p=dropout, training=training)
 
@@ -452,16 +452,14 @@ class ShiftedWindowAttentionV2(ShiftedWindowAttention):
         relative_position_bias = self.get_relative_position_bias()
         return shifted_window_attention(
             x,
-            self.qkv.weight,
-            self.proj.weight,
+            self.qkv,
+            self.proj,
             relative_position_bias,
             self.window_size,
             self.num_heads,
             shift_size=self.shift_size,
             attention_dropout=self.attention_dropout,
             dropout=self.dropout,
-            qkv_bias=self.qkv.bias,
-            proj_bias=self.proj.bias,
             logit_scale=self.logit_scale,
             training=self.training,
         )
